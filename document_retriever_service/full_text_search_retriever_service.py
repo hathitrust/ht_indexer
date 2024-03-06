@@ -2,11 +2,13 @@ import argparse
 import inspect
 import os
 import sys
+import time
+
 import catalog_metadata.catalog_metadata as catalog_metadata
 from document_generator.document_generator import DocumentGenerator
 from ht_utils.ht_logger import get_ht_logger
 from catalog_retriever_service import CatalogRetrieverService
-import ht_indexer_api.ht_indexer_api
+from ht_indexer_api.ht_indexer_api import HTSolrAPI
 import ht_utils.ht_mysql
 from ht_utils.text_processor import create_solr_string
 from indexer_config import DOCUMENT_LOCAL_PATH
@@ -31,11 +33,12 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
 
     def __init__(self, catalog_api=None,
                  document_generator_obj: DocumentGenerator = None,
-                 document_local_path: str = None, document_local_folder: str = None
-                 ):
+                 document_local_path: str = None, document_local_folder: str = None):
+
         super().__init__(catalog_api)
         self.document_generator = document_generator_obj
 
+        self.publish = "local"
         # TODO: Define the queue to publish the documents
         self.document_local_path = document_local_path
         self.document_local_folder = document_local_folder
@@ -44,18 +47,19 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
         try:
             if self.document_local_path:
                 document_local_path = os.path.abspath(self.document_local_path)
-            os.makedirs(os.path.join(document_local_path, document_local_folder))
+                os.makedirs(os.path.join(document_local_path, document_local_folder))
         except FileExistsError:
             pass
 
-    def publish_document(self, file_name: str = None, content: str = None):
+    def publish_document(self, file_name: str = None, entry: dict = None):
         """
         Right now, the entry is saved in a file and, but it could be published in a queue
 
         """
+
         file_path = f"{os.path.join(self.document_local_path, self.document_local_folder)}/{file_name}"
         with open(file_path, "w") as f:
-            f.write(content)
+            f.write(create_solr_string(entry))
         logger.info(f"File {file_name} created in {file_path}")
 
     def full_text_search_retriever_service(self, query, start, rows, document_repository):
@@ -80,6 +84,7 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
     def generate_full_text_entry(self, item_id: str, record: catalog_metadata.CatalogItemMetadata,
                                  document_repository: str):
 
+        start_time = time.time()
         logger.info(f"Generating document {item_id}")
 
         # Instantiate each document
@@ -96,7 +101,9 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
             except Exception as e:
                 raise e
             self.publish_document(file_name=f"{ht_document.namespace}{ht_document.file_name}_solr_full_text.xml",
-                                  content=create_solr_string(entry))
+                                  entry=entry)
+            logger.info(
+                f"Time to generate full-text search {ht_document.document_id} document {time.time() - start_time:.10f}")
         else:
             logger.info(f"{ht_document.document_id} does not exist")
 
@@ -111,7 +118,7 @@ def main():
         logger.error("Error: `SOLR_URL` environment variable required")
         sys.exit(1)
 
-    solr_api_catalog = ht_indexer_api.ht_indexer_api.HTSolrAPI(url=solr_url)
+    solr_api_catalog = HTSolrAPI(url=solr_url)
 
     # MySql connection
     try:
@@ -174,11 +181,15 @@ def main():
     start = 0
     rows = 100
 
+    start_time = time.time()
+
     document_indexer_service.full_text_search_retriever_service(
         args.query,
         start,
         rows,
         document_repository=args.document_repository)
+
+    logger.info(f"Total time to retrieve and generate documents {time.time() - start_time:.10f}")
 
 
 if __name__ == "__main__":
