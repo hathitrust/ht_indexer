@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 
 from catalog_metadata.catalog_metadata import CatalogRecordMetadata, CatalogItemMetadata
 
@@ -52,6 +53,7 @@ class CatalogRetrieverService:
                 count_records = count_records + 1
 
                 catalog_record_metadata = CatalogRecordMetadata(record)
+                start_time = time.time()
                 if 'ht_id' in query:
                     # Process a specific item of a record
                     try:
@@ -66,7 +68,7 @@ class CatalogRetrieverService:
                     for item_id in record.get('ht_id'):  # Append list of CatalogMetadata object
                         results.append(CatalogRetrieverService.get_catalog_object(record, item_id,
                                                                                   catalog_record_metadata))
-
+                logger.info(f"Time to retrieve document metadata {time.time() - start_time}")
             logger.info(f"Batch documents {count_records}")
             start += rows
             logger.info(f"Result lenght {len(results)}")
