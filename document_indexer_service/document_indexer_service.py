@@ -26,7 +26,7 @@ class DocumentIndexerService:
 
     def indexing_documents(self, path, list_documents=None):
         # Call API
-        response = self.solr_api_full_text.index_document(path, list_documents=list_documents)
+        response = self.solr_api_full_text.index_documents(path, list_documents=list_documents)
         return response
 
     @staticmethod
