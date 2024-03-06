@@ -6,6 +6,7 @@ import inspect
 import json
 import os
 import sys
+import time
 
 from catalog_metadata.catalog_metadata import CatalogRecordMetadata
 from document_generator.document_generator import DocumentGenerator
@@ -151,11 +152,12 @@ def main():
 
     solr_api_catalog = HTSolrAPI(url=solr_url)
 
+    start_time = time.time()
     document_indexer_service = FullTextSearchRetrieverServiceByFile(solr_api_catalog,
                                                                     document_generator,
                                                                     document_local_path,
                                                                     document_local_folder)
-
+    logger.info(f"Time to retrieve documents {time.time() - start_time:.10f}")
     # TODO: Add start and rows to a configuration file
     start = 0
     rows = 100
