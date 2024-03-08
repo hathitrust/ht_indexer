@@ -21,6 +21,8 @@ services:
         condition: service_healthy
       solr-lss-dev:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     tty: true
     stdin_open: true
   solr-lss-dev:
@@ -72,8 +74,25 @@ services:
     depends_on:
       solr-lss-dev:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     tty: true
     stdin_open: true
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 5s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
 volumes:
   solr_data:
 
