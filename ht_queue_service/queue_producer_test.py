@@ -34,7 +34,7 @@ class TestHTProducerService:
         start = time.time()
         with multiprocessing.Pool(PROCESSES) as p:
             p.map_async(
-                self.test_queue_prodiuce_one_message,
+                self.test_queue_produce_one_message,
                 create_list_message
             )
             # clean up
