@@ -5,9 +5,13 @@ from ht_queue_service.queue_producer import QueueProducer
 
 
 class TestHTConsumerService:
-    def test_queue_does_not_exist(self, message=None):
+    def test_queue_consume_message(self):
         message = {"ht_id": "1234", "ht_title": "Hello World", "ht_author": "John Doe"}
-        ht_producer = QueueProducer("guest", "guest", "localhost", "catalog_queue", "test")
+        ht_producer = QueueProducer("guest",
+                                    "guest",
+                                    "rabbitmq",
+                                    "catalog_queue",
+                                    "test")
 
         ht_producer.publish_messages(message)
 

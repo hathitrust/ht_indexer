@@ -21,8 +21,11 @@ def create_list_message():
 
 
 class TestHTProducerService:
-    def test_queue_does_not_exist(self):
-        ht_producer = QueueProducer("guest", "guest", "localhost", "catalog_queue", "test")
+    def test_queue_produce_one_message(self):
+        ht_producer = QueueProducer("guest",
+                                    "guest",
+                                    "rabbitmq",
+                                    "catalog_queue", "test")
 
         ht_producer.publish_messages(message)
 
@@ -31,7 +34,7 @@ class TestHTProducerService:
         start = time.time()
         with multiprocessing.Pool(PROCESSES) as p:
             p.map_async(
-                self.test_queue_does_not_exist,
+                self.test_queue_prodiuce_one_message,
                 create_list_message
             )
             # clean up
