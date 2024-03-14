@@ -8,11 +8,9 @@ import catalog_metadata.catalog_metadata as catalog_metadata
 from document_generator.document_generator import DocumentGenerator
 from ht_utils.ht_logger import get_ht_logger
 from catalog_retriever_service import CatalogRetrieverService
-from ht_indexer_api.ht_indexer_api import HTSolrAPI
-import ht_utils.ht_mysql
 from ht_utils.text_processor import create_solr_string
-from indexer_config import DOCUMENT_LOCAL_PATH
 from ht_document.ht_document import HtDocument
+from document_retriever_service.retriever_arguments import RetrieverServiceArguments
 
 logger = get_ht_logger(name=__name__)
 
@@ -21,7 +19,7 @@ parent = os.path.dirname(current)
 sys.path.insert(0, parent)
 
 
-class FullTextSearchRetrieverService(CatalogRetrieverService):
+class FullTextSearchRetrieverService(CatalogRetrieverService, RetrieverServiceArguments):
     """
     This class is responsible to retrieve the documents from the Catalog and generate the full text search entry
     There are three main use cases:
@@ -33,12 +31,11 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
 
     def __init__(self, catalog_api=None,
                  document_generator_obj: DocumentGenerator = None,
-                 document_local_path: str = None, document_local_folder: str = None):
-
+                 document_local_path: str = None, document_local_folder: str = None
+                 ):
         super().__init__(catalog_api)
         self.document_generator = document_generator_obj
 
-        self.publish = "local"
         # TODO: Define the queue to publish the documents
         self.document_local_path = document_local_path
         self.document_local_folder = document_local_folder
@@ -51,7 +48,7 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
         except FileExistsError:
             pass
 
-    def publish_document(self, file_name: str = None, entry: dict = None):
+    def publish_document(self, file_name: str = None, content: dict = None):
         """
         Right now, the entry is saved in a file and, but it could be published in a queue
 
@@ -59,7 +56,7 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
 
         file_path = f"{os.path.join(self.document_local_path, self.document_local_folder)}/{file_name}"
         with open(file_path, "w") as f:
-            f.write(create_solr_string(entry))
+            f.write(create_solr_string(content))
         logger.info(f"File {file_name} created in {file_path}")
 
     def full_text_search_retriever_service(self, query, start, rows, document_repository):
@@ -101,7 +98,7 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
             except Exception as e:
                 raise e
             self.publish_document(file_name=f"{ht_document.namespace}{ht_document.file_name}_solr_full_text.xml",
-                                  entry=entry)
+                                  content=entry)
             logger.info(
                 f"Time to generate full-text search {ht_document.document_id} document {time.time() - start_time:.10f}")
         else:
@@ -110,84 +107,24 @@ class FullTextSearchRetrieverService(CatalogRetrieverService):
 
 def main():
     parser = argparse.ArgumentParser()
+    init_args_obj = RetrieverServiceArguments(parser)
 
-    # Catalog Solr server
-    try:
-        solr_url = os.environ["SOLR_URL"]
-    except KeyError:
-        logger.error("Error: `SOLR_URL` environment variable required")
-        sys.exit(1)
-
-    solr_api_catalog = HTSolrAPI(url=solr_url)
-
-    # MySql connection
-    try:
-        mysql_host = os.environ["MYSQL_HOST"]
-    except KeyError:
-        logger.error("Error: `MYSQL_HOST` environment variable required")
-        sys.exit(1)
-
-    try:
-        mysql_user = os.environ["MYSQL_USER"]
-    except KeyError:
-        logger.error("Error: `MYSQL_USER` environment variable required")
-        sys.exit(1)
-
-    try:
-        mysql_pass = os.environ["MYSQL_PASS"]
-    except KeyError:
-        logger.error("Error: `MYSQL_PASS` environment variable required")
-        sys.exit(1)
-
-    ht_mysql = ht_utils.ht_mysql.HtMysql(
-        host=mysql_host,
-        user=mysql_user,
-        password=mysql_pass,
-        database=os.environ.get("MYSQL_DATABASE", "ht")
-    )
-
-    logger.info("Access by default to `ht` Mysql database")
-
-    parser.add_argument("--query", help="Query used to retrieve documents", default=None
-                        )
-
-    parser.add_argument("--document_repository",
-                        help="Could be pairtree or local", default="local"
-                        )
-
-    # Path to the folder where the documents are stored. This parameter is useful for runing the script locally
-    parser.add_argument("--document_local_path",
-                        help="Path of the folder where the documents (.xml file to index) are stored.",
-                        required=False,
-                        default=None
-                        )
-
-    args = parser.parse_args()
-
-    document_generator = DocumentGenerator(ht_mysql)
-
-    document_local_folder = "indexing_data"
-    document_local_path = DOCUMENT_LOCAL_PATH
-
-    document_indexer_service = FullTextSearchRetrieverService(solr_api_catalog, document_generator, document_local_path,
-                                                              document_local_folder
-                                                              )
-
-    if args.query is None:
+    if init_args_obj.query is None:
         logger.error("Error: `query` parameter required")
         sys.exit(1)
 
-    # TODO: Add start and rows to a configuration file
-    start = 0
-    rows = 100
+    document_indexer_service = FullTextSearchRetrieverService(init_args_obj.solr_api_catalog,
+                                                              init_args_obj.document_generator,
+                                                              init_args_obj.document_local_path,
+                                                              init_args_obj.document_local_folder
+                                                              )
 
     start_time = time.time()
-
     document_indexer_service.full_text_search_retriever_service(
-        args.query,
-        start,
-        rows,
-        document_repository=args.document_repository)
+        init_args_obj.query,
+        init_args_obj.start,
+        init_args_obj.rows,
+        document_repository=init_args_obj.document_repository)
 
     logger.info(f"Total time to retrieve and generate documents {time.time() - start_time:.10f}")
 

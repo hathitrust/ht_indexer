@@ -38,12 +38,12 @@ class FullTextSearchRetrieverQueueService(FullTextSearchRetrieverService):
         self.queue_producer = QueueProducer(queue_user, queue_password, queue_host,
                                             queue_name, "retriever")
 
-    def publish_document(self, file_name: str = None, entry: dict = None):
+    def publish_document(self, file_name: str = None, content: dict = None):
 
         """
         Publish the document in a queue
         """
-        message = entry
+        message = content
         self.queue_producer.publish_messages(message)
 
     def full_text_search_retriever_service(self, query, start, rows, document_repository):

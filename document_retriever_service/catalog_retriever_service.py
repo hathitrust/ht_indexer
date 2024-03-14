@@ -16,10 +16,10 @@ class CatalogRetrieverService:
         self.catalog_api = catalog_api
 
     @staticmethod
-    def get_catalog_object(record: dict, item_id: str,
+    def get_catalog_object(item_id: str,
                            record_metadata: CatalogRecordMetadata) -> CatalogItemMetadata:
 
-        catalog_item_metadata = CatalogItemMetadata(record, item_id, record_metadata)
+        catalog_item_metadata = CatalogItemMetadata(item_id, record_metadata)
         return catalog_item_metadata
 
     def retrieve_documents(self, query, start, rows):
@@ -61,12 +61,12 @@ class CatalogRetrieverService:
                     except Exception as e:
                         logger.error(f"Query {query} does not have a valid format {e}")
                         exit()
-                    results.append(CatalogRetrieverService.get_catalog_object(record, item_id, catalog_record_metadata))
+                    results.append(CatalogRetrieverService.get_catalog_object(item_id, catalog_record_metadata))
                 # This is the most efficient way to retrieve the items from Catalog
                 else:
                     # Process all the items of a record
                     for item_id in record.get('ht_id'):  # Append list of CatalogMetadata object
-                        results.append(CatalogRetrieverService.get_catalog_object(record, item_id,
+                        results.append(CatalogRetrieverService.get_catalog_object(item_id,
                                                                                   catalog_record_metadata))
                 logger.info(f"Time to retrieve document metadata {time.time() - start_time}")
             logger.info(f"Batch documents {count_records}")

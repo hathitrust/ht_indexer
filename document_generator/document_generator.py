@@ -20,6 +20,7 @@ logger = get_ht_logger(name=__name__)
 
 
 class DocumentGenerator:
+
     def __init__(self, db_conn: HtMysql):
         self.mysql_data_extractor = MysqlMetadataExtractor(db_conn)
 
@@ -106,6 +107,7 @@ class DocumentGenerator:
         entry = {"id": ht_document.document_id}
 
         start = time.time()
+
         # Generate ocr field
         entry.update(DocumentGenerator.create_ocr_field(ht_document.source_path))
 
@@ -117,7 +119,11 @@ class DocumentGenerator:
         )
 
         doc_metadata.metadata.pop("fullrecord")
+
         logger.info(f"Time to generate OCR field {ht_document.document_id} {time.time() - start}")
+
+        # Add Catalog fields to full-text document
+        entry.update(doc_metadata.metadata)
 
         # Add Catalog fields to full-text document
         entry.update(doc_metadata.metadata)
@@ -125,6 +131,7 @@ class DocumentGenerator:
         start = time.time()
         # Retrieve data from MariaDB
         entry.update(self.mysql_data_extractor.retrieve_mysql_data(ht_document.document_id))
+
         logger.info(f"Time to generate MySQL fields {ht_document.document_id} {time.time() - start}")
 
         start = time.time()
