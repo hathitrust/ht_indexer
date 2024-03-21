@@ -23,7 +23,8 @@ class QueueProducer:
 
         # Open a connection to RabbitMQ
         self.queue_connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host,
-                                                                                  credentials=self.credentials))
+                                                                                  credentials=self.credentials,
+                                                                                  heartbeat=5))
         self.ht_channel = ht_queue_connection(self.queue_connection, self.channel_name, self.queue_name)
 
     def queue_reconnect(self):
@@ -42,13 +43,11 @@ class QueueProducer:
             # routing_key is the name of the queue
             self.ht_channel.basic_publish(exchange=self.channel_name,
                                           routing_key=self.queue_name,
-                                          body=json.dumps(queue_message),
-                                          # properties=pika.BasicProperties(delivery_mode=2,  # make message persistent
-                                          #                                ), mandatory=True
+                                          body=json.dumps(queue_message)
                                           )
-            # self.ht_channel.close()
+
             logger.info("Message was confirmed in the queue")
-            # break
+
         # TODO - Add a better exception handling
         # pika.exceptions.ChannelWrongStateError add the method on_open_callback to check if the channel is oppened
         # https://github.com/pika/pika/issues/1240

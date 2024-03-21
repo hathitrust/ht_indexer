@@ -4,7 +4,6 @@ import os
 import sys
 import time
 import multiprocessing
-from threading import Thread
 
 from document_retriever_service.catalog_retriever_service import CatalogRetrieverService
 from document_retriever_service.retriever_arguments import RetrieverServiceArguments
@@ -65,24 +64,19 @@ class FullTextSearchRetrieverQueueService:
         total_documents = catalog_retriever.count_documents(initial_documents, start, rows, by_field)
 
         count_records = 0
-        ite = 0
         while count_records < total_documents:
             chunk = initial_documents[count_records:count_records + rows]
-            ite = ite + 1
-
             result = catalog_retriever.retrieve_documents(chunk, start, rows, by_field=by_field)
 
             for record in result:
                 item_id = record.ht_id
                 logger.info(f"Processing document {item_id}")
                 # publish the document in a queue
-
                 item_metadata = record.metadata
                 item_metadata['ht_id'] = item_id
                 logger.info(f"Publishing document {item_id} count={count_records}")
-                queue_thread = Thread(target=publish_document, args=[queue_producer, item_metadata])
-                queue_thread.start()
-            print(f"Total iterations {ite}")
+                publish_document(queue_producer, item_metadata)
+
             count_records += len(result)
             logger.info(f"Total of processed items {count_records}")
 
