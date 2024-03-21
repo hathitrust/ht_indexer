@@ -3,6 +3,7 @@
 import pika
 import json
 
+from ht_queue_service import ht_queue_connection
 from ht_utils.ht_logger import get_ht_logger
 
 logger = get_ht_logger(name=__name__)
@@ -23,21 +24,6 @@ logger = get_ht_logger(name=__name__)
 # start consuming the queue
 # create a thread to start consuming the queue
 
-def ht_queue_connection(queue_connection: pika.BlockingConnection,
-                        ht_channel_name: str, queue_name: str):
-    ht_channel = queue_connection.channel()
-
-    # exchange - this can be assumed as a bridge name which needed to be declared so that queues can be accessed
-    ht_channel.exchange_declare(ht_channel_name, durable=True, exchange_type="topic")
-
-    # Check if the queue exist
-    # Declare the queue as durable, so the queue will survive a broker restart
-    ht_channel.queue_declare(queue=queue_name, durable=True)
-
-    ht_channel.queue_bind(exchange=ht_channel_name, queue=queue_name, routing_key=queue_name)
-    return ht_channel
-
-
 class QueueConsumer:
     def __init__(self, user: str, password: str, host: str, queue_name: str, channel_name: str):
         # Define credentials (user/password) as environment variables
@@ -51,25 +37,35 @@ class QueueConsumer:
         self.queue_connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host,
                                                                                   credentials=self.credentials))
         self.ht_channel = ht_queue_connection(self.queue_connection, self.channel_name, self.queue_name)
-        # This uses the basic.qos protocol method to tell RabbitMQ not to give more than one message to a worker
-        # at a time
-        self.ht_channel.basic_qos(prefetch_count=1)
 
-    def consume_message(self):
-        logger.info(f"Got a message from Queue {self.queue_name}")
-        # auto_ack=True, means that the message will be removed from the queue once it has been consumed, it is use
-        # to make sure no message is lost
-        self.ht_channel.basic_consume(queue=self.queue_name,
-                                      auto_ack=True,
-                                      on_message_callback=self.callback_function
-                                      )
+    def consume_message(self) -> dict:
 
-        # logger.info(' [*] Waiting for messages. To exit press CTRL+C')
-        # self.ht_channel.start_consuming()
+        # TODO: Add a batch size parameter to limit the number of messages to be fetched. That is a usefull feature
+        # if we want to add multiprocessing to the consumer to limit the number of messages for each worker
+        # message_limit = total_messages
 
-    def callback_function(self, ch, method, properties, body):
-        print(f"Got a message from Queue {self.queue_name}")
+        try:
+            for method_frame, properties, body in self.ht_channel.consume(self.queue_name,
+                                                                          auto_ack=False,
+                                                                          inactivity_timeout=3):
 
-        # ['order.stop.create']
-        body = json.loads(body)
-        return body
+                if method_frame:
+                    self.ht_channel.basic_ack(method_frame.delivery_tag)
+                    output_message = json.loads(body.decode('utf-8'))
+                    yield output_message
+                else:
+                    # Escape out of the loop when desired msgs are fetched
+                    # TODO A different alternative to scape out the loop is
+                    #  checking the delivery_tag for each message if method_frame.delivery_tag == total_messages:
+                    # Cancel the consumer and return any pending messages
+                    requeued_messages = self.ht_channel.cancel()
+                    print('Requeued %i messages' % requeued_messages)
+                    break
+        except Exception as e:
+            print(f'Connection Interrupted: {e}')
+
+    def get_total_messages(self):
+        # durable: Survive reboots of the broker
+        # passive: Only check to see if the queue exists and raise `ChannelClosed` if it doesn't
+        status = self.ht_channel.queue_declare(queue=self.queue_name, durable=True, passive=True)
+        return status.method.message_count

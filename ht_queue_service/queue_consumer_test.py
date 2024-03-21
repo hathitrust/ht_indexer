@@ -9,21 +9,33 @@ class TestHTConsumerService:
         message = {"ht_id": "1234", "ht_title": "Hello World", "ht_author": "John Doe"}
         ht_producer = QueueProducer("guest",
                                     "guest",
-                                    "rabbitmq",
-                                    "catalog_queue",
+                                    "rabbitmq",  # "rabbitmq"
+                                    "test_producer_queue",
                                     "test")
 
         ht_producer.publish_messages(message)
 
         queue_consumer = QueueConsumer("guest",
                                        "guest",
-                                       "localhost",
-                                       "catalog_queue",
+                                       "rabbitmq",
+                                       "test_producer_queue",
                                        "test")
 
-        for method_frame, properties, body in queue_consumer.ht_channel.consume('catalog_queue'):
+        for method_frame, properties, body in queue_consumer.ht_channel.consume('test_producer_queue'):
             # Display the message parts
             output_message = json.loads(body.decode('utf-8'))
             assert message == output_message
 
             break
+
+    def test_queue_consume_message_empty(self):
+
+        queue_consumer = QueueConsumer("guest",
+                                       "guest",
+                                       "rabbitmq",
+                                       "test_producer_queue",
+                                       "test")
+
+        for message in queue_consumer.consume_message():
+            print(message)
+        assert 0 == queue_consumer.get_total_messages()
