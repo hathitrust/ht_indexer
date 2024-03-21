@@ -90,6 +90,8 @@ services:
         condition: service_healthy
       solr-lss-dev:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
   document_generator:
     container_name: document_generator
     image: document_generator
@@ -138,7 +140,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-      HOSTNAME: rabbitmq
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 5s
