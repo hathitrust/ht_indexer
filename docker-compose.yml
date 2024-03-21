@@ -138,6 +138,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+      HOSTNAME: rabbitmq
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 5s
