@@ -128,7 +128,7 @@ services:
     stdin_open: true
     environment:
       - QUEUE_HOST=rabbitmq
-      - QUEUE_NAME=retriever_queue
+      - QUEUE_NAME=indexer_queue
       - QUEUE_PASS=guest
       - QUEUE_USER=guest
   rabbitmq:
