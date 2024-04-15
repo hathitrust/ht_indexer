@@ -1,7 +1,9 @@
 import os
 import sys
 
+from ht_queue_service.queue_producer import QueueProducer
 from ht_utils.ht_logger import get_ht_logger
+from ht_queue_service.queue_consumer import QueueConsumer
 import ht_utils.ht_mysql
 
 logger = get_ht_logger(name=__name__)
@@ -10,19 +12,19 @@ logger = get_ht_logger(name=__name__)
 def get_mysql_conn():
     # MySql connection
     try:
-        mysql_host = os.getenv("MYSQL_HOST", "mysql-sdr")  # os.environ["MYSQL_HOST"]
+        mysql_host = os.getenv("MYSQL_HOST", "mysql-sdr")
     except KeyError:
         logger.error("Error: `MYSQL_HOST` environment variable required")
         sys.exit(1)
 
     try:
-        mysql_user = os.getenv("MYSQL_USER", "mdp-lib")  # os.environ["MYSQL_USER"]
+        mysql_user = os.getenv("MYSQL_USER", "mdp-lib")
     except KeyError:
         logger.error("Error: `MYSQL_USER` environment variable required")
         sys.exit(1)
 
     try:
-        mysql_pass = os.getenv("MYSQL_PASS", "mdp-lib")  # os.environ["MYSQL_PASS"]
+        mysql_pass = os.getenv("MYSQL_PASS", "mdp-lib")
     except KeyError:
         logger.error("Error: `MYSQL_PASS` environment variable required")
         sys.exit(1)
@@ -42,7 +44,6 @@ def get_mysql_conn():
 class GeneratorServiceArguments:
 
     def __init__(self, parser):
-        self.src_channel_name = None
         parser.add_argument("--document_repository",
                             help="Could be pairtree or local", default="local"
                             )
@@ -54,23 +55,31 @@ class GeneratorServiceArguments:
                             default=None
                             )
 
+        parser.add_argument("--not_required_tgt_queue",
+                            action='store_true',
+                            help="Parameter to define the generated documents will be publish in a queue."
+                                 "If the parameter is set to False, the documents will be stored in a local folder.",
+                            )
+
         self.args = parser.parse_args()
 
         # MySql connection
         self.db_conn = get_mysql_conn()
 
-        # Using queue or local machine
-        self.src_queue_name = os.environ["SRC_QUEUE_NAME"]
-        self.src_queue_host = os.environ["SRC_QUEUE_HOST"]
-        self.src_queue_user = os.environ["SRC_QUEUE_USER"]
-        self.src_queue_password = os.environ["SRC_QUEUE_PASS"]
+        self.src_queue_consumer = QueueConsumer(os.environ["SRC_QUEUE_USER"],
+                                                os.environ["SRC_QUEUE_PASS"],
+                                                os.environ["SRC_QUEUE_HOST"],
+                                                os.environ["SRC_QUEUE_NAME"])
 
-        # Using queue or local machine
-        self.tgt_queue_name = os.environ["TGT_QUEUE_NAME"]
-        self.tgt_queue_host = os.environ["TGT_QUEUE_HOST"]
-        self.tgt_queue_user = os.environ["TGT_QUEUE_USER"]
-        self.tgt_queue_password = os.environ["TGT_QUEUE_PASS"]
+        # Publish documents in a queue or local folder
+        self.not_required_tgt_queue = self.args.not_required_tgt_queue
 
+        if not self.args.not_required_tgt_queue:
+            self.tgt_queue_producer = QueueProducer(os.environ["TGT_QUEUE_USER"],
+                                                    os.environ["TGT_QUEUE_PASS"],
+                                                    os.environ["TGT_QUEUE_HOST"],
+                                                    os.environ["TGT_QUEUE_NAME"])
+
+        # Variables used if the documents are stored in a local folder
         self.document_repository = self.args.document_repository
-
         self.document_local_path = self.args.document_local_path

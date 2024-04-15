@@ -14,12 +14,10 @@ logger = get_ht_logger(name=__name__)
 
 
 class DocumentGeneratorService:
-    def __init__(self, db_conn, src_queue_name: str = 'retriever_queue', src_queue_host: str = None,
-                 src_queue_user: str = None,
-                 src_queue_password: str = None, src_channel_name: str = "retriever",
-                 tgt_queue_name: str = 'indexer_queue', tgt_queue_host: str = None, tgt_queue_user: str = None,
-                 tgt_queue_password: str = None, tgt_channel_name: str = "indexer", document_repository: str = None,
-                 required_tgt_queue: bool = True
+    def __init__(self, db_conn, src_queue_consumer: QueueConsumer,
+                 tgt_queue_producer: QueueProducer,
+                 document_repository: str = None,
+                 not_required_tgt_queue: bool = False
                  ):
 
         """
@@ -27,32 +25,20 @@ class DocumentGeneratorService:
         the full text search entry and publish the document in a queue
 
         :param db_conn: Mysql connection
-        :param src_queue_name: Name of the queue to read the messages
-        :param src_queue_host: Host of the queue to read the messages
-        :param src_queue_user: User of the queue to read the messages
-        :param src_queue_password: Password of the queue to read the messages
-        :param src_channel_name: Name of the channel
-
-        :param tgt_queue_name: Name of the queue to write the messages
-        :param tgt_queue_host: Host of the queue to write the messages
-        :param tgt_queue_user: User of the queue to write the messages
-        :param tgt_queue_password: Password of the queue to write the messages
-        :param tgt_channel_name: Name of the channel of the queue to write the messages
-
+        :param src_queue_consumer: Connection of the queue to read the messages
+        :param tgt_queue_producer: Connection of the queue to publish the messages
+        :param not_required_tgt_queue: Parameter to define if the generated documents will be published in a queue
         :param document_repository: Parameter to know if the plain text of the items is in the local or remote repository
         """
 
         self.document_generator = DocumentGenerator(db_conn)
-        self.src_queue_name = src_queue_name
-        self.src_queue_consumer = QueueConsumer(src_queue_user, src_queue_password, src_queue_host,
-                                                self.src_queue_name, src_channel_name)
+
+        self.src_queue_consumer = src_queue_consumer
 
         self.document_repository = document_repository
 
-        if required_tgt_queue:
-            self.tgt_queue_name = tgt_queue_name
-            self.tgt_queue_producer = QueueProducer(tgt_queue_user, tgt_queue_password, tgt_queue_host,
-                                                    self.tgt_queue_name, tgt_channel_name)
+        if not not_required_tgt_queue:
+            self.tgt_queue_producer = tgt_queue_producer
 
     def generate_full_text_entry(self, item_id: str, record: dict, document_repository: str):
 
@@ -89,14 +75,6 @@ class DocumentGeneratorService:
 
     def generate_document(self):
 
-        # Generate document --- this is a different component in the new design
-        # Return a tuple: pos 0: current message count, the redelivered flag,
-        # the routing key that was used to put the message in the queue, and the exchange
-        # the message was published to
-        # pos 1: will be a BasicProperties object
-        # pos 2: the message body
-
-        # batch_size = 10
         for message in self.src_queue_consumer.consume_message():
 
             item_id = message.get("ht_id")
@@ -120,17 +98,11 @@ def main():
     parser = argparse.ArgumentParser()
     init_args_obj = GeneratorServiceArguments(parser)
 
-    document_generator_service = DocumentGeneratorService(init_args_obj.db_conn, init_args_obj.src_queue_name,
-                                                          init_args_obj.src_queue_host,
-                                                          init_args_obj.src_queue_user,
-                                                          init_args_obj.src_queue_password,
-                                                          'retriever',
-                                                          init_args_obj.tgt_queue_name,
-                                                          init_args_obj.tgt_queue_host,
-                                                          init_args_obj.tgt_queue_user,
-                                                          init_args_obj.tgt_queue_password,
-                                                          'indexer',
-                                                          init_args_obj.document_repository
+    document_generator_service = DocumentGeneratorService(init_args_obj.db_conn,
+                                                          init_args_obj.src_queue_consumer,
+                                                          init_args_obj.tgt_queue_producer,
+                                                          init_args_obj.document_repository,
+                                                          not_required_tgt_queue=init_args_obj.not_required_tgt_queue
                                                           )
     document_generator_service.generate_document()
 

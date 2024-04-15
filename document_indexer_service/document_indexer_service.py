@@ -17,12 +17,10 @@ sys.path.insert(0, parent)
 
 
 class DocumentIndexerQueueService:
-    def __init__(self, solr_api_full_text: HTSolrAPI = None, queue_user: str = None, queue_password: str = None,
-                 queue_host: str = None, queue_name: str = None):
+    def __init__(self, solr_api_full_text: HTSolrAPI,
+                 queue_consumer: QueueConsumer):
         self.solr_api_full_text = solr_api_full_text
-
-        self.queue_consumer = QueueConsumer(queue_user, queue_password, queue_host, queue_name, "indexer")
-        self.queue_name = queue_name
+        self.queue_consumer = queue_consumer
 
     def storage_document(self, json_object: dict = None):
 
@@ -37,7 +35,7 @@ class DocumentIndexerQueueService:
             try:
                 response = self.storage_document(json_object=message)
                 logger.info(f"Index operation status: {response.status_code}")
-            # print(message)
+
             except Exception as e:
                 logger.info(f"Something went wrong with Solr {e}")
 
@@ -49,10 +47,7 @@ def main():
     init_args_obj = IndexerServiceArguments(parser)
 
     document_indexer_queue_service = DocumentIndexerQueueService(init_args_obj.solr_api_full_text,
-                                                                 init_args_obj.queue_user,
-                                                                 init_args_obj.queue_password,
-                                                                 init_args_obj.queue_host,
-                                                                 init_args_obj.queue_name)
+                                                                 init_args_obj.queue_consumer)
 
     document_indexer_queue_service.indexer_service()
 

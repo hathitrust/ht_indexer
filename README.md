@@ -22,9 +22,11 @@ queue_indexer: Queue to manage the flow of documents to be indexed in Full-text 
 
 ## Use cases
 
-For all the use cases, a list of documents is received. In addition, a field indicating the field used to retrieve the
-query is also received. The field could be id or ht_id. The field id is used if you want to process all the items in
-a record, and the ht_id is used when a specific item will be processed.
+For all the use cases, a list of documents is received. This workflow retrieve metadata from Catalog index, then a
+parameter is received indicating the catalog solr field to query. The Solr query can contain the field id or ht_id.
+
+The field id is used if you want to process all the items on
+a record. The ht_id is used when a specific item of a Catalog record will be processed.
 
 The Solr query will look like this: `id:100673101` or `ht_id:umn.31951d01828300z`
 

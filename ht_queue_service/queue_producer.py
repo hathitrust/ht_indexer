@@ -1,9 +1,7 @@
 # producer
 import json
 
-import pika
-
-from ht_queue_service import ht_queue_connection
+from ht_queue_service.queue_connection import QueueConnection
 from ht_utils.ht_logger import get_ht_logger
 
 logger = get_ht_logger(name=__name__)
@@ -12,39 +10,32 @@ logger = get_ht_logger(name=__name__)
 class QueueProducer:
     """ Create a class to sent messages to a rabbitMQ """
 
-    def __init__(self, user: str, password: str, host: str, queue_name: str, channel_name: str):
+    def __init__(self, user: str, password: str, host: str, queue_name: str):
         # Define credentials (user/password) as environment variables
         # declaring the credentials needed for connection like host, port, username, password, exchange etc
-        self.credentials = pika.PlainCredentials(username=user, password=password)
 
+        self.user = user
         self.host = host
         self.queue_name = queue_name
-        self.channel_name = channel_name
-
-        # Open a connection to RabbitMQ
-        self.queue_connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host,
-                                                                                  credentials=self.credentials,
-                                                                                  heartbeat=5))
-        self.ht_channel = ht_queue_connection(self.queue_connection, self.channel_name, self.queue_name)
+        self.password = password
+        self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name)
 
     def queue_reconnect(self):
-        # Reconnect to RabbitMQ
-        self.queue_connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host,
-                                                                                  credentials=self.credentials))
-        self.ht_channel = ht_queue_connection(self.queue_connection, self.channel_name, self.queue_name)
-        self.ht_channel.queue_declare(queue=self.queue_name, durable=True)
+        self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name)
+        self.conn.ht_channel.queue_declare(queue=self.queue_name, durable=True)
 
     def publish_messages(self, queue_message: dict) -> None:
 
         logger.info(f"Sending message to queue {self.queue_name}")
         try:
+            # We are using the default exchange
             # method used which we call to send message to specific queue
             # Do we need to create a new exchange our we could use the default
             # routing_key is the name of the queue
-            self.ht_channel.basic_publish(exchange=self.channel_name,
-                                          routing_key=self.queue_name,
-                                          body=json.dumps(queue_message)
-                                          )
+            self.conn.ht_channel.basic_publish(exchange=self.conn.exchange,
+                                               routing_key=self.queue_name,
+                                               body=json.dumps(queue_message)
+                                               )
 
             logger.info("Message was confirmed in the queue")
 
@@ -60,7 +51,7 @@ class QueueProducer:
             # time.sleep(5)
             # self.queue_reconnect()
         finally:
-            if self.queue_connection:
-                self.queue_connection.close()
+            if self.conn.queue_connection:
+                self.conn.queue_connection.close()
                 logger.info("Connection to RabbitMQ closed")
         self.queue_reconnect()

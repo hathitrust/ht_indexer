@@ -1,9 +1,8 @@
 # consumer
 
-import pika
 import json
 
-from ht_queue_service import ht_queue_connection
+from ht_queue_service.queue_connection import QueueConnection
 from ht_utils.ht_logger import get_ht_logger
 
 logger = get_ht_logger(name=__name__)
@@ -25,18 +24,16 @@ logger = get_ht_logger(name=__name__)
 # create a thread to start consuming the queue
 
 class QueueConsumer:
-    def __init__(self, user: str, password: str, host: str, queue_name: str, channel_name: str):
+    def __init__(self, user: str, password: str, host: str, queue_name: str):
         # Define credentials (user/password) as environment variables
         # declaring the credentials needed for connection like host, port, username, password, exchange etc
-        self.credentials = pika.PlainCredentials(username=user, password=password)
 
+        self.user = user
         self.host = host
         self.queue_name = queue_name
-        self.channel_name = channel_name
+        self.password = password
 
-        self.queue_connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host,
-                                                                                  credentials=self.credentials))
-        self.ht_channel = ht_queue_connection(self.queue_connection, self.channel_name, self.queue_name)
+        self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name)
 
     def consume_message(self) -> dict:
 
@@ -45,12 +42,11 @@ class QueueConsumer:
         # message_limit = total_messages
 
         try:
-            for method_frame, properties, body in self.ht_channel.consume(self.queue_name,
-                                                                          auto_ack=False,
-                                                                          inactivity_timeout=3):
+            for method_frame, properties, body in self.conn.ht_channel.consume(self.queue_name,
+                                                                               auto_ack=False):
 
                 if method_frame:
-                    self.ht_channel.basic_ack(method_frame.delivery_tag)
+                    self.conn.ht_channel.basic_ack(method_frame.delivery_tag)
                     output_message = json.loads(body.decode('utf-8'))
                     yield output_message
                 else:
@@ -58,7 +54,7 @@ class QueueConsumer:
                     # TODO A different alternative to scape out the loop is
                     #  checking the delivery_tag for each message if method_frame.delivery_tag == total_messages:
                     # Cancel the consumer and return any pending messages
-                    requeued_messages = self.ht_channel.cancel()
+                    requeued_messages = self.conn.ht_channel.cancel()
                     print('Requeued %i messages' % requeued_messages)
                     break
         except Exception as e:
@@ -67,5 +63,5 @@ class QueueConsumer:
     def get_total_messages(self):
         # durable: Survive reboots of the broker
         # passive: Only check to see if the queue exists and raise `ChannelClosed` if it doesn't
-        status = self.ht_channel.queue_declare(queue=self.queue_name, durable=True, passive=True)
+        status = self.conn.ht_channel.queue_declare(queue=self.queue_name, durable=True, passive=True)
         return status.method.message_count
