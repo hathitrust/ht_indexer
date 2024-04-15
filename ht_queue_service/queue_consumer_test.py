@@ -10,18 +10,16 @@ class TestHTConsumerService:
         ht_producer = QueueProducer("guest",
                                     "guest",
                                     "rabbitmq",  # "rabbitmq"
-                                    "test_producer_queue",
-                                    "test")
+                                    "test_producer_queue")
 
         ht_producer.publish_messages(message)
 
         queue_consumer = QueueConsumer("guest",
                                        "guest",
                                        "rabbitmq",
-                                       "test_producer_queue",
-                                       "test")
+                                       "test_producer_queue")
 
-        for method_frame, properties, body in queue_consumer.ht_channel.consume('test_producer_queue'):
+        for method_frame, properties, body in queue_consumer.conn.ht_channel.consume('test_producer_queue'):
             # Display the message parts
             output_message = json.loads(body.decode('utf-8'))
             assert message == output_message
@@ -33,8 +31,7 @@ class TestHTConsumerService:
         queue_consumer = QueueConsumer("guest",
                                        "guest",
                                        "rabbitmq",
-                                       "test_producer_queue",
-                                       "test")
+                                       "test_producer_queue")
 
         for message in queue_consumer.consume_message():
             print(message)

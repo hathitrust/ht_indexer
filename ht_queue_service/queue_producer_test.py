@@ -24,9 +24,8 @@ class TestHTProducerService:
     def test_queue_produce_one_message(self):
         ht_producer = QueueProducer("guest",
                                     "guest",
-                                    "rabbitmq",  # rabbitmq
-                                    "test_producer_queue",
-                                    "test")
+                                    "rabbitmq",
+                                    "test_producer_queue")
 
         ht_producer.publish_messages(message)
 
