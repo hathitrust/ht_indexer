@@ -25,6 +25,7 @@ class TestHTConsumerService:
             assert message == output_message
 
             break
+        queue_consumer.conn.ht_channel.cancel()
 
     def test_queue_consume_message_empty(self):
 
@@ -36,3 +37,5 @@ class TestHTConsumerService:
         for message in queue_consumer.consume_message():
             print(message)
         assert 0 == queue_consumer.get_total_messages()
+
+        queue_consumer.conn.ht_channel.cancel()

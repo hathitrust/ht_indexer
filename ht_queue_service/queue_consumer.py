@@ -43,7 +43,8 @@ class QueueConsumer:
 
         try:
             for method_frame, properties, body in self.conn.ht_channel.consume(self.queue_name,
-                                                                               auto_ack=False):
+                                                                               auto_ack=False,
+                                                                               inactivity_timeout=3):
 
                 if method_frame:
                     self.conn.ht_channel.basic_ack(method_frame.delivery_tag)
