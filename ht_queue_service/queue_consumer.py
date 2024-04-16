@@ -8,21 +8,6 @@ from ht_utils.ht_logger import get_ht_logger
 logger = get_ht_logger(name=__name__)
 
 
-# os.environ['RABBITMQ_HOST'] = 'localhost'
-# os.environ['RABBITMQ_PORT'] = '5672'
-# os.environ['RABBITMQ_USERNAME'] = 'guest'
-# os.environ['RABBITMQ_PASSWORD'] = 'guest'
-
-
-# To get message from the queue you have to define a callback functions that is subscribed to a queue
-#
-# make a class to connect to the rabbitMQ
-# create a channel
-# create a queue
-# create a callback function
-# start consuming the queue
-# create a thread to start consuming the queue
-
 class QueueConsumer:
     def __init__(self, user: str, password: str, host: str, queue_name: str):
         # Define credentials (user/password) as environment variables
@@ -32,10 +17,14 @@ class QueueConsumer:
         self.host = host
         self.queue_name = queue_name
         self.password = password
+        self._is_interrupted = False
 
         self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name)
 
-    def consume_message(self) -> dict:
+    def queue_stop_consuming(self):
+        self._is_interrupted = True
+
+    def consume_message(self, inactivity_timeout: int = None) -> dict:
 
         # TODO: Add a batch size parameter to limit the number of messages to be fetched. That is a usefull feature
         # if we want to add multiprocessing to the consumer to limit the number of messages for each worker
@@ -44,13 +33,14 @@ class QueueConsumer:
         try:
             for method_frame, properties, body in self.conn.ht_channel.consume(self.queue_name,
                                                                                auto_ack=False,
-                                                                               inactivity_timeout=3):
+                                                                               inactivity_timeout=inactivity_timeout
+                                                                               ):
 
                 if method_frame:
                     self.conn.ht_channel.basic_ack(method_frame.delivery_tag)
                     output_message = json.loads(body.decode('utf-8'))
                     yield output_message
-                else:
+                if self._is_interrupted or not method_frame:
                     # Escape out of the loop when desired msgs are fetched
                     # TODO A different alternative to scape out the loop is
                     #  checking the delivery_tag for each message if method_frame.delivery_tag == total_messages:
