@@ -38,7 +38,7 @@ def producer_instance():
     # Instantiate the producer
     ht_producer = QueueProducer("guest",
                                 "guest",
-                                "localhost",  # "rabbitmq"
+                                "rabbitmq",
                                 "test_producer_queue")
 
     return ht_producer
@@ -52,7 +52,7 @@ def consumer_instance():
     # Instantiate the consumer
     ht_consumer = QueueConsumer("guest",
                                 "guest",
-                                "localhost",
+                                "rabbitmq",
                                 "test_producer_queue")
     return ht_consumer
 
