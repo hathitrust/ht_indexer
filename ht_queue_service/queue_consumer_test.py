@@ -70,6 +70,7 @@ class TestHTConsumerService:
         for method_frame, properties, body in consumer_instance.consume_message(inactivity_timeout=1):
             output_message = json.loads(body.decode('utf-8'))
             assert output_message == one_message
+            break
 
         assert 0 == consumer_instance.get_total_messages()
 
@@ -108,3 +109,6 @@ class TestHTConsumerService:
                         f"with error: {e}")
                     # Reject the message
                     reject_message(consumer_instance.conn.ht_channel, method_frame.delivery_tag)
+            else:
+                logger.info("Empty queue: Test ended")
+                break

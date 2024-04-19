@@ -42,6 +42,8 @@ class QueueConsumer:
                                                                                ):
                 if method_frame:
                     yield method_frame, properties, body
+                else:
+                    yield None, None, None
         # Todo: Add a better exception handling, check different parameters at RabbitMQ
         except Exception as e:
             logger.info(f'Connection Interrupted: {e}')
