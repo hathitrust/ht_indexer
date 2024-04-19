@@ -92,9 +92,6 @@ class CatalogItemMetadata:
     def get_item_htsource(self) -> str:
         """
         In catalog it could be a list of sources, should obtain the source of a specific item
-        :param id: Catalod ht_id field
-        :param catalog_htsource: catalog item source
-        :param catalog_htid: catalog item ht_id
         :return:
         """
         item_position = self.record_metadata.record.get("ht_id").index(self.ht_id)

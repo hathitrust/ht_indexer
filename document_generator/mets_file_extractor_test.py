@@ -13,7 +13,7 @@ class TestMETSFileExtractor:
         return mets_obj
 
     def test_create_METS_map(self, metsAttrExtractorObj):
-        mets_map = metsAttrExtractorObj.create_METS_map()
+        mets_map = metsAttrExtractorObj.create_mets_map()
 
         assert (
                 mets_map.get("488").get("features") == "CHAPTER_START, IMPLICIT_PAGE_NUMBER"
@@ -32,7 +32,7 @@ class TestMETSFileExtractor:
         assert reading_order.get("coverTag") == "follows-reading-order"
 
     def test_get_unique_features(self, metsAttrExtractorObj):
-        mets_map = metsAttrExtractorObj.create_METS_map()
+        mets_map = metsAttrExtractorObj.create_mets_map()
 
         assert sorted(
             [

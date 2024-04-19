@@ -5,6 +5,10 @@ import multiprocessing
 import time
 import copy
 
+from ht_utils.ht_logger import get_ht_logger
+
+logger = get_ht_logger(name=__name__)
+
 PROCESSES = multiprocessing.cpu_count() - 1
 
 message = {"ht_id": "1234", "ht_title": "Hello World", "ht_author": "John Doe"}
@@ -24,13 +28,13 @@ class TestHTProducerService:
     def test_queue_produce_one_message(self):
         ht_producer = QueueProducer("guest",
                                     "guest",
-                                    "rabbitmq",
+                                    "localhost",
                                     "test_producer_queue")
 
         ht_producer.publish_messages(message)
 
     def test_multiprocessing_producer(self, create_list_message):
-        print(f" Running with {PROCESSES} processes")
+        logger.info(f" Running with {PROCESSES} processes")
         start = time.time()
         with multiprocessing.Pool(PROCESSES) as p:
             p.map_async(
@@ -41,4 +45,4 @@ class TestHTProducerService:
             p.close()
             p.join()
 
-        print(f"Time taken = {time.time() - start:.10f}")
+        logger.info(f"Time taken = {time.time() - start:.10f}")

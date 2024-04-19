@@ -1,6 +1,7 @@
 import argparse
 import zipfile
 import time
+import os
 
 from document_generator.mysql_data_extractor import MysqlMetadataExtractor
 from ht_utils.ht_mysql import HtMysql
@@ -49,15 +50,17 @@ class DocumentGenerator:
         full_text = ""
         logger.info("=================")
         logger.info(f"Document path {zip_doc_path}")
-        try:
-            zip_doc = zipfile.ZipFile(zip_doc_path, mode="r")
-            for i_file in zip_doc.namelist():
-                if zip_doc.getinfo(i_file).filename.endswith(".txt"):
-                    full_text = (
-                            full_text + " " + string_preparation(zip_doc.read(i_file))
-                    )
-        except Exception as e:
-            logger.error(f"Something wrong with your zip file {e}")
+        if not os.path.isfile(zip_doc_path):
+            raise FileNotFoundError(f"File {zip_doc_path} not found")
+            # try:
+        zip_doc = zipfile.ZipFile(zip_doc_path, mode="r")
+        for i_file in zip_doc.namelist():
+            if zip_doc.getinfo(i_file).filename.endswith(".txt"):
+                full_text = (
+                        full_text + " " + string_preparation(zip_doc.read(i_file))
+                )
+        # except Exception as e:
+        #    logger.error(f"Something wrong with your zip file {e}")
         full_text = full_text.encode().decode()
         return full_text
 

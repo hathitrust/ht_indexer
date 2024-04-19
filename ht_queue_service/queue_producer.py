@@ -22,7 +22,10 @@ class QueueProducer:
 
     def queue_reconnect(self):
         self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name)
-        self.conn.ht_channel.queue_declare(queue=self.queue_name, durable=True)
+        self.conn.ht_channel.queue_declare(queue=self.queue_name, durable=True, exclusive=False, auto_delete=False,
+                                           arguments={'x-dead-letter-exchange': 'dlx',
+                                                      "x-dead-letter-routing-key": f"dlx_key_{self.queue_name}"}
+                                           )
 
     def publish_messages(self, queue_message: dict) -> None:
 
