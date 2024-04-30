@@ -99,12 +99,12 @@ class DocumentGeneratorService:
                 except Exception as e:
                     logger.error(f"Something wrong sending {item_id} to the queue {e}")
                     reject_message(self.src_queue_consumer.conn.ht_channel,
-                                   method_frame.delivery_tag)
+                                   method_frame.delivery_tag, requeue_message=False)
                     continue
             except Exception as e:
                 logger.error(f"Document {item_id} failed {e}")
                 reject_message(self.src_queue_consumer.conn.ht_channel,
-                               method_frame.delivery_tag)
+                               method_frame.delivery_tag, requeue_message=False)
                 continue
 
 

@@ -1,5 +1,6 @@
 import json
 import pytest
+import time
 
 from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge, reject_message
 from ht_queue_service.queue_producer import QueueProducer
@@ -31,35 +32,91 @@ def list_messages():
 
 
 @pytest.fixture
-def producer_instance():
+def queue_parameters(request):
     """
-    This function is used to generate a message
+    This function is used to create the parameters for the queue
     """
-    # Instantiate the producer
-    ht_producer = QueueProducer("guest",
-                                "guest",
-                                "rabbitmq",
-                                "test_producer_queue")
-
-    return ht_producer
+    return request.param
 
 
 @pytest.fixture
-def consumer_instance():
+def producer_instance(queue_parameters):
     """
     This function is used to generate a message
     """
-    # Instantiate the consumer
-    ht_consumer = QueueConsumer("guest",
-                                "guest",
-                                "rabbitmq",
-                                "test_producer_queue")
-    return ht_consumer
+
+    return QueueProducer(queue_parameters["user"], queue_parameters["password"],
+                         queue_parameters["host"], queue_parameters["queue_name"],
+                         queue_parameters["dead_letter_queue"])
+
+
+@pytest.fixture
+def consumer_instance(queue_parameters):
+    """
+    This function is used to generate a message
+    """
+
+    return QueueConsumer(queue_parameters["user"], queue_parameters["password"],
+                         queue_parameters["host"], queue_parameters["queue_name"],
+                         queue_parameters["dead_letter_queue"])
+
+
+@pytest.fixture
+def populate_queue(list_messages, producer_instance, consumer_instance, queue_parameters):
+    """ Test for re-queueing a message from the queue, an error is raised, and the message is routed
+            to the dead letter queue and discarded from the main queue"""
+
+    # Clean up the queue
+    consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)
+
+    for message in list_messages:
+        # Publish the message
+        producer_instance.publish_messages(message)
+
+    start_time = time.time()
+    for method_frame, properties, body in consumer_instance.consume_message(inactivity_timeout=3):
+
+        if method_frame:
+            try:
+                # Process the message
+                output_message = json.loads(body.decode('utf-8'))
+
+                # Use the message to raise an exception
+                if output_message.get("ht_id") == "5":
+                    # This will raise an exception
+                    logger.info(f"Message {output_message.get('ht_id')} processed successfully {1 / 0}")
+                # Acknowledge the message if the message is processed successfully
+                positive_acknowledge(consumer_instance.conn.ht_channel, method_frame.delivery_tag)
+            except Exception as e:
+                logger.info(
+                    f"Message {method_frame.delivery_tag} re-queued to {consumer_instance.queue_name}"
+                    f"with error: {e}")
+
+                # Reject the message
+                reject_message(consumer_instance.conn.ht_channel, method_frame.delivery_tag,
+                               requeue_message=queue_parameters["Request_True"])
+                current_time = time.time()
+
+                # This check was added to avoid the test to run indefinitely because the queue is not empty and
+                # it is stuck
+                if current_time - start_time > 60:
+                    logger.info("The test is taking too long: Test ended")
+                    break
+                time.sleep(1)
+
+        else:
+            logger.info("Empty queue: Test ended")
+            break
 
 
 class TestHTConsumerService:
-    def test_queue_consume_message(self, one_message, consumer_instance, producer_instance):
-        """ Test for consuming a message from the queue"""
+
+    @pytest.mark.parametrize("queue_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
+                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True}])
+    def test_queue_consume_message(self, one_message, producer_instance, consumer_instance):
+        """ Test for consuming a message from the queue
+        One message is published and consumed, then at the end of the test the queue is empty
+        """
 
         # Clean up the queue
         consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)
@@ -74,6 +131,8 @@ class TestHTConsumerService:
 
         assert 0 == consumer_instance.get_total_messages()
 
+    @pytest.mark.parametrize("queue_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
+                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True}])
     def test_queue_consume_message_empty(self, consumer_instance):
         """ Test for consuming a message from an empty queue"""
 
@@ -82,33 +141,35 @@ class TestHTConsumerService:
 
         assert 0 == consumer_instance.get_total_messages()
 
-    def test_queue_requeue_message(self, list_messages, consumer_instance, producer_instance):
+    @pytest.mark.parametrize("queue_parameters",
+                             [{"user": "guest", "password": "guest", "host": "rabbitmq",
+                               "queue_name": "test_producer_queue", "dead_letter_queue": True,
+                               "Request_True": False}])
+    def test_queue_requeue_message_requeue_false(self, populate_queue, consumer_instance):
+        """ Test for re-queueing a message from the queue, an error is raised, and the message is routed
+        to the dead letter queue and discarded from the main queue"""
 
-        # Clean up the queue
+        check_consumer = QueueConsumer("guest", "guest", "rabbitmq",
+                                       "test_producer_queue_dead_letter_queue", dead_letter_queue=False)
+
+        assert 0 == consumer_instance.get_total_messages()
+        assert 1 == check_consumer.get_total_messages()
+
+        check_consumer.conn.ht_channel.queue_purge(check_consumer.queue_name)
+
+    @pytest.mark.parametrize("queue_parameters",
+                             [{"user": "guest", "password": "guest", "host": "rabbitmq",
+                               "queue_name": "test_producer_queue", "dead_letter_queue": True,
+                               "Request_True": True}])
+    def test_queue_requeue_message_requeue_true(self, populate_queue, consumer_instance):
+        """ Test for re-queueing a message from the queue, an error is raised, and instead of routing the message
+        to the dead letter queue it is requeue to the main queue"""
+
+        check_consumer = QueueConsumer("guest", "guest", "rabbitmq",
+                                       "test_producer_queue_dead_letter_queue", dead_letter_queue=False)
+
+        assert consumer_instance.get_total_messages() > 0
+        assert 0 == check_consumer.get_total_messages()
+
+        check_consumer.conn.ht_channel.queue_purge(check_consumer.queue_name)
         consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)
-
-        for message in list_messages:
-            # Publish the message
-            producer_instance.publish_messages(message)
-
-        for method_frame, properties, body in consumer_instance.consume_message(inactivity_timeout=3):
-            if method_frame:
-                try:
-                    # Process the message
-                    output_message = json.loads(body.decode('utf-8'))
-
-                    # Use the message to raise an exception
-                    if output_message.get("ht_id") == "5":
-                        # This will raise an exception
-                        logger.info(f"Message {output_message.get('ht_id')} processed successfully {1 / 0}")
-                    # Acknowledge the message if the message is processed successfully
-                    positive_acknowledge(consumer_instance.conn.ht_channel, method_frame.delivery_tag)
-                except Exception as e:
-                    logger.info(
-                        f"Message {method_frame.delivery_tag} re-queued to {consumer_instance.queue_name} "
-                        f"with error: {e}")
-                    # Reject the message
-                    reject_message(consumer_instance.conn.ht_channel, method_frame.delivery_tag)
-            else:
-                logger.info("Empty queue: Test ended")
-                break

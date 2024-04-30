@@ -7,8 +7,8 @@ from ht_utils.ht_logger import get_ht_logger
 logger = get_ht_logger(name=__name__)
 
 
-def reject_message(used_channel, basic_deliver):
-    used_channel.basic_reject(delivery_tag=basic_deliver, requeue=False)
+def reject_message(used_channel, basic_deliver, requeue_message=False):
+    used_channel.basic_reject(delivery_tag=basic_deliver, requeue=requeue_message)
 
 
 def positive_acknowledge(used_channel, basic_deliver):
@@ -16,7 +16,7 @@ def positive_acknowledge(used_channel, basic_deliver):
 
 
 class QueueConsumer:
-    def __init__(self, user: str, password: str, host: str, queue_name: str):
+    def __init__(self, user: str, password: str, host: str, queue_name: str, dead_letter_queue: bool = True):
 
         # Credentials (user/password) are defined as environment variables
         # declaring the credentials needed for connection like host, port, username, password, exchange etc
@@ -26,7 +26,8 @@ class QueueConsumer:
         self.password = password
         self._is_interrupted = False
 
-        self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name)
+        self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name,
+                                    dead_letter_queue=dead_letter_queue)
 
     def queue_stop_consuming(self):
         """Stop consuming messages from the queue"""

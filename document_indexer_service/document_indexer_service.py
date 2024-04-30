@@ -39,7 +39,7 @@ class DocumentIndexerQueueService:
                 logger.info(f"Index operation status: {response.status_code}")
                 positive_acknowledge(self.queue_consumer.conn.ht_channel, method_frame.delivery_tag)
             except Exception as e:
-                reject_message(self.queue_consumer.conn.ht_channel, method_frame.delivery_tag)
+                reject_message(self.queue_consumer.conn.ht_channel, method_frame.delivery_tag, requeue_message=False)
                 logger.info(f"Something went wrong with Solr {e}")
 
 

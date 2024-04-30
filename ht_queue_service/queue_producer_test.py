@@ -24,14 +24,30 @@ def create_list_message():
     return list_message
 
 
-class TestHTProducerService:
-    def test_queue_produce_one_message(self):
-        ht_producer = QueueProducer("guest",
-                                    "guest",
-                                    "rabbitmq",
-                                    "test_producer_queue")
+@pytest.fixture
+def queue_parameters(request):
+    """
+    This function is used to create the parameters for the queue
+    """
+    return request.param
 
-        ht_producer.publish_messages(message)
+
+@pytest.fixture
+def producer_instance(queue_parameters):
+    """
+    This function is used to generate a message
+    """
+
+    return QueueProducer(queue_parameters["user"], queue_parameters["password"],
+                         queue_parameters["host"], queue_parameters["queue_name"],
+                         queue_parameters["dead_letter_queue"])
+
+
+class TestHTProducerService:
+    @pytest.mark.parametrize("queue_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
+                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True}])
+    def test_queue_produce_one_message(self, producer_instance):
+        producer_instance.publish_messages(message)
 
     def test_multiprocessing_producer(self, create_list_message):
         logger.info(f" Running with {PROCESSES} processes")
@@ -46,3 +62,21 @@ class TestHTProducerService:
             p.join()
 
         logger.info(f"Time taken = {time.time() - start:.10f}")
+
+    @pytest.mark.parametrize("queue_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
+                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True}])
+    def test_queue_reconnect(self, producer_instance):
+        # Check if the connection is open
+        assert producer_instance.conn.queue_connection.is_open
+
+        # Close the connection
+        producer_instance.conn.queue_connection.close()
+
+        # Check if the connection is closed
+        assert not producer_instance.conn.queue_connection.is_open
+
+        # Reconnect
+        producer_instance.conn.queue_reconnect()
+
+        # Check if the connection is open
+        assert producer_instance.conn.queue_connection.is_open
