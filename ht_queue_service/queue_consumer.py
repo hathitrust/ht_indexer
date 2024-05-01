@@ -7,16 +7,23 @@ from ht_utils.ht_logger import get_ht_logger
 logger = get_ht_logger(name=__name__)
 
 
-def reject_message(used_channel, basic_deliver, requeue_message=False):
-    used_channel.basic_reject(delivery_tag=basic_deliver, requeue=requeue_message)
-
-
 def positive_acknowledge(used_channel, basic_deliver):
     used_channel.basic_ack(delivery_tag=basic_deliver)
 
 
 class QueueConsumer:
-    def __init__(self, user: str, password: str, host: str, queue_name: str, dead_letter_queue: bool = True):
+    def __init__(self, user: str, password: str, host: str, queue_name: str, dead_letter_queue: bool = True,
+                 requeue_message: bool = False):
+
+        """
+        This class is used to consume messages from the queue
+        :param user: username for the RabbitMQ
+        :param password: password for the RabbitMQ
+        :param host: host for the RabbitMQ
+        :param queue_name: name of the queue
+        :param dead_letter_queue: boolean to enable dead letter queue
+        :param requeue_message: boolean to requeue the message to the queue
+        """
 
         # Credentials (user/password) are defined as environment variables
         # declaring the credentials needed for connection like host, port, username, password, exchange etc
@@ -24,14 +31,10 @@ class QueueConsumer:
         self.host = host
         self.queue_name = queue_name
         self.password = password
-        self._is_interrupted = False
+        self.requeue_message = requeue_message
 
         self.conn = QueueConnection(self.user, self.password, self.host, self.queue_name,
                                     dead_letter_queue=dead_letter_queue)
-
-    def queue_stop_consuming(self):
-        """Stop consuming messages from the queue"""
-        self._is_interrupted = True
 
     def consume_message(self, inactivity_timeout: int = None) -> dict:
 
@@ -49,8 +52,5 @@ class QueueConsumer:
         except Exception as e:
             logger.info(f'Connection Interrupted: {e}')
 
-    def get_total_messages(self):
-        # durable: Survive reboots of the broker
-        # passive: Only check to see if the queue exists and raise `ChannelClosed` if it doesn't
-        status = self.conn.ht_channel.queue_declare(queue=self.queue_name, durable=True, passive=True)
-        return status.method.message_count
+    def reject_message(self, used_channel, basic_deliver):
+        used_channel.basic_reject(delivery_tag=basic_deliver, requeue=self.requeue_message)

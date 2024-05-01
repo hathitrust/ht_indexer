@@ -31,4 +31,6 @@ class IndexerServiceArguments:
         self.queue_consumer = QueueConsumer(os.environ["QUEUE_USER"],
                                             os.environ["QUEUE_PASS"],
                                             os.environ["QUEUE_HOST"],
-                                            os.environ["QUEUE_NAME"])
+                                            os.environ["QUEUE_NAME"],
+                                            dead_letter_queue=True,
+                                            requeue_message=False)

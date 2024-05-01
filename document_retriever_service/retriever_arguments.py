@@ -41,6 +41,7 @@ class RetrieverServiceArguments:
         self.queue_host = os.environ["QUEUE_HOST"]
         self.queue_user = os.environ["QUEUE_USER"]
         self.queue_password = os.environ["QUEUE_PASS"]
+        self.dead_letter_queue = True
 
         self.args = parser.parse_args()
 

@@ -48,6 +48,8 @@ class TestHTProducerService:
                                                    "queue_name": "test_producer_queue", "dead_letter_queue": True}])
     def test_queue_produce_one_message(self, producer_instance):
         producer_instance.publish_messages(message)
+        assert producer_instance.conn.get_total_messages() == 1
+        producer_instance.conn.ht_channel.queue_purge(producer_instance.queue_name)
 
     def test_multiprocessing_producer(self, create_list_message):
         logger.info(f" Running with {PROCESSES} processes")

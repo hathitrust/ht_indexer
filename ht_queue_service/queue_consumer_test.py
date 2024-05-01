@@ -2,7 +2,7 @@ import json
 import pytest
 import time
 
-from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge, reject_message
+from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge
 from ht_queue_service.queue_producer import QueueProducer
 
 from ht_utils.ht_logger import get_ht_logger
@@ -58,7 +58,8 @@ def consumer_instance(queue_parameters):
 
     return QueueConsumer(queue_parameters["user"], queue_parameters["password"],
                          queue_parameters["host"], queue_parameters["queue_name"],
-                         queue_parameters["dead_letter_queue"])
+                         queue_parameters["dead_letter_queue"],
+                         queue_parameters["requeue_message"])
 
 
 @pytest.fixture
@@ -93,8 +94,7 @@ def populate_queue(list_messages, producer_instance, consumer_instance, queue_pa
                     f"with error: {e}")
 
                 # Reject the message
-                reject_message(consumer_instance.conn.ht_channel, method_frame.delivery_tag,
-                               requeue_message=queue_parameters["Request_True"])
+                consumer_instance.reject_message(consumer_instance.conn.ht_channel, method_frame.delivery_tag)
                 current_time = time.time()
 
                 # This check was added to avoid the test to run indefinitely because the queue is not empty and
@@ -112,7 +112,8 @@ def populate_queue(list_messages, producer_instance, consumer_instance, queue_pa
 class TestHTConsumerService:
 
     @pytest.mark.parametrize("queue_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
-                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True}])
+                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True,
+                                                   "requeue_message": False}])
     def test_queue_consume_message(self, one_message, producer_instance, consumer_instance):
         """ Test for consuming a message from the queue
         One message is published and consumed, then at the end of the test the queue is empty
@@ -129,47 +130,50 @@ class TestHTConsumerService:
             assert output_message == one_message
             break
 
-        assert 0 == consumer_instance.get_total_messages()
+        assert 0 == consumer_instance.conn.get_total_messages()
 
     @pytest.mark.parametrize("queue_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
-                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True}])
+                                                   "queue_name": "test_producer_queue", "dead_letter_queue": True,
+                                                   "requeue_message": False}])
     def test_queue_consume_message_empty(self, consumer_instance):
         """ Test for consuming a message from an empty queue"""
 
         # Clean up the queue
         consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)
 
-        assert 0 == consumer_instance.get_total_messages()
+        assert 0 == consumer_instance.conn.get_total_messages()
 
     @pytest.mark.parametrize("queue_parameters",
                              [{"user": "guest", "password": "guest", "host": "rabbitmq",
                                "queue_name": "test_producer_queue", "dead_letter_queue": True,
-                               "Request_True": False}])
+                               "requeue_message": False}])
     def test_queue_requeue_message_requeue_false(self, populate_queue, consumer_instance):
         """ Test for re-queueing a message from the queue, an error is raised, and the message is routed
         to the dead letter queue and discarded from the main queue"""
 
         check_consumer = QueueConsumer("guest", "guest", "rabbitmq",
-                                       "test_producer_queue_dead_letter_queue", dead_letter_queue=False)
+                                       "test_producer_queue_dead_letter_queue", dead_letter_queue=False,
+                                       requeue_message=False)
 
-        assert 0 == consumer_instance.get_total_messages()
-        assert 1 == check_consumer.get_total_messages()
+        assert 0 == consumer_instance.conn.get_total_messages()
+        assert 1 == check_consumer.conn.get_total_messages()
 
         check_consumer.conn.ht_channel.queue_purge(check_consumer.queue_name)
 
     @pytest.mark.parametrize("queue_parameters",
                              [{"user": "guest", "password": "guest", "host": "rabbitmq",
                                "queue_name": "test_producer_queue", "dead_letter_queue": True,
-                               "Request_True": True}])
+                               "requeue_message": True}])
     def test_queue_requeue_message_requeue_true(self, populate_queue, consumer_instance):
         """ Test for re-queueing a message from the queue, an error is raised, and instead of routing the message
-        to the dead letter queue it is requeue to the main queue"""
+        to the dead letter queue, it is requeue to the main queue"""
 
         check_consumer = QueueConsumer("guest", "guest", "rabbitmq",
-                                       "test_producer_queue_dead_letter_queue", dead_letter_queue=False)
+                                       "test_producer_queue_dead_letter_queue", dead_letter_queue=False,
+                                       requeue_message=True)
 
-        assert consumer_instance.get_total_messages() > 0
-        assert 0 == check_consumer.get_total_messages()
+        assert consumer_instance.conn.get_total_messages() > 0
+        assert 0 == check_consumer.conn.get_total_messages()
 
         check_consumer.conn.ht_channel.queue_purge(check_consumer.queue_name)
         consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)

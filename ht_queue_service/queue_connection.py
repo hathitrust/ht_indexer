@@ -88,3 +88,9 @@ class QueueConnection:
                       self.dead_letter_queue)
         if self.dead_letter_queue:
             ht_declare_dead_letter_queue(self.ht_channel, self.queue_name)
+
+    def get_total_messages(self):
+        # durable: Survive reboots of the broker
+        # passive: Only check to see if the queue exists and raise `ChannelClosed` if it doesn't
+        status = self.ht_channel.queue_declare(queue=self.queue_name, durable=True, passive=True)
+        return status.method.message_count

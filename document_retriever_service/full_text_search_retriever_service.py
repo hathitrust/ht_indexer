@@ -43,13 +43,15 @@ class FullTextSearchRetrieverQueueService:
                  solr_api_url,
                  queue_name: str = 'retriever_queue', queue_host: str = None,
                  queue_user: str = None,
-                 queue_password: str = None):
+                 queue_password: str = None,
+                 dead_letter_queue: bool = False):
 
         self.solr_api_url = solr_api_url
         self.queue_name = queue_name
         self.queue_host = queue_host
         self.queue_user = queue_user
         self.queue_password = queue_password
+        self.dead_letter_queue = dead_letter_queue
 
     def full_text_search_retriever_service(self, initial_documents, start, rows, by_field: str = 'item'):
         """
@@ -57,7 +59,8 @@ class FullTextSearchRetrieverQueueService:
         """
         # Create a connection to the queue and Solr Api
         catalog_retriever = CatalogRetrieverService(self.solr_api_url)
-        queue_producer = QueueProducer(self.queue_user, self.queue_password, self.queue_host, self.queue_name)
+        queue_producer = QueueProducer(self.queue_user, self.queue_password, self.queue_host, self.queue_name,
+                                       self.dead_letter_queue)
 
         total_documents = catalog_retriever.count_documents(initial_documents, start, rows, by_field)
 
@@ -127,7 +130,8 @@ def main():
         init_args_obj.queue_name,
         init_args_obj.queue_host,
         init_args_obj.queue_user,
-        init_args_obj.queue_password)
+        init_args_obj.queue_password,
+        init_args_obj.dead_letter_queue)
 
     by_field = init_args_obj.query_field
     list_documents = init_args_obj.list_documents

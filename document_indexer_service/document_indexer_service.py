@@ -6,7 +6,7 @@ import os
 import sys
 import json
 
-from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge, reject_message
+from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge
 from ht_utils.ht_logger import get_ht_logger
 from ht_indexer_api.ht_indexer_api import HTSolrAPI
 
@@ -39,7 +39,7 @@ class DocumentIndexerQueueService:
                 logger.info(f"Index operation status: {response.status_code}")
                 positive_acknowledge(self.queue_consumer.conn.ht_channel, method_frame.delivery_tag)
             except Exception as e:
-                reject_message(self.queue_consumer.conn.ht_channel, method_frame.delivery_tag, requeue_message=False)
+                self.queue_consumer.reject_message(self.queue_consumer.conn.ht_channel, method_frame.delivery_tag)
                 logger.info(f"Something went wrong with Solr {e}")
 
 

@@ -69,7 +69,9 @@ class GeneratorServiceArguments:
         self.src_queue_consumer = QueueConsumer(os.environ["SRC_QUEUE_USER"],
                                                 os.environ["SRC_QUEUE_PASS"],
                                                 os.environ["SRC_QUEUE_HOST"],
-                                                os.environ["SRC_QUEUE_NAME"])
+                                                os.environ["SRC_QUEUE_NAME"],
+                                                dead_letter_queue=True,
+                                                requeue_message=False)
 
         # Publish documents in a queue or local folder
         self.not_required_tgt_queue = self.args.not_required_tgt_queue
@@ -78,7 +80,8 @@ class GeneratorServiceArguments:
             self.tgt_queue_producer = QueueProducer(os.environ["TGT_QUEUE_USER"],
                                                     os.environ["TGT_QUEUE_PASS"],
                                                     os.environ["TGT_QUEUE_HOST"],
-                                                    os.environ["TGT_QUEUE_NAME"])
+                                                    os.environ["TGT_QUEUE_NAME"],
+                                                    dead_letter_queue=True)
 
         # Variables used if the documents are stored in a local folder
         self.document_repository = self.args.document_repository

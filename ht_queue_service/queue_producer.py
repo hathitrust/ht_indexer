@@ -11,6 +11,14 @@ class QueueProducer:
     """ Create a class to send messages to a rabbitMQ """
 
     def __init__(self, user: str, password: str, host: str, queue_name: str, dead_letter_queue: bool = True):
+        """
+
+        :param user: username for the RabbitMQ
+        :param password: password for the RabbitMQ
+        :param host: host for the RabbitMQ
+        :param queue_name: name of the queue
+        :param dead_letter_queue: boolean to enable dead letter queue
+        """
         # Define credentials (user/password) as environment variables
         # declaring the credentials needed for connection like host, port, username, password, exchange etc
 

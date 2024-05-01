@@ -6,7 +6,7 @@ import json
 from document_generator.full_text_document_generator import DocumentGenerator
 from ht_document.ht_document import HtDocument
 from document_generator.generator_arguments import GeneratorServiceArguments
-from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge, reject_message
+from ht_queue_service.queue_consumer import QueueConsumer, positive_acknowledge
 from ht_queue_service.queue_producer import QueueProducer
 
 from ht_utils.ht_logger import get_ht_logger
@@ -98,13 +98,13 @@ class DocumentGeneratorService:
                                          method_frame.delivery_tag)
                 except Exception as e:
                     logger.error(f"Something wrong sending {item_id} to the queue {e}")
-                    reject_message(self.src_queue_consumer.conn.ht_channel,
-                                   method_frame.delivery_tag, requeue_message=False)
+                    self.src_queue_consumer.reject_message(self.src_queue_consumer.conn.ht_channel,
+                                                           method_frame.delivery_tag)
                     continue
             except Exception as e:
                 logger.error(f"Document {item_id} failed {e}")
-                reject_message(self.src_queue_consumer.conn.ht_channel,
-                               method_frame.delivery_tag, requeue_message=False)
+                self.src_queue_consumer.reject_message(self.src_queue_consumer.conn.ht_channel,
+                                                       method_frame.delivery_tag)
                 continue
 
 
