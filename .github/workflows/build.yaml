@@ -1,11 +1,6 @@
 name: Build
 
 on:
-    workflow_run:
-        workflows: ['Run Tests']
-        branches: ['main']
-        types: [completed]
-
     workflow_dispatch:
         inputs:
             img_tag:
@@ -42,7 +37,7 @@ jobs:
             - name: Build Image
               uses: hathitrust/github_actions/build@v1
               with:
-                image: ghcr.io/hathitrust/ht-indexer
+                image: ghcr.io/${{ github.repository }}
                 dockerfile: Dockerfile
                 img_tag: ${{ inputs.img_tag }}
                 tag: ${{ inputs.ref }}
