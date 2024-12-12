@@ -26,8 +26,7 @@ jobs:
                   uses: hathitrust/github_actions/deploy@v1
                   with:
                     image: ghcr.io/${{ github.repository }}:${{ inputs.branch_hash }}
-                    file: environments/fulltext/${{ github.event.repository.name }}/${{inputs.environments}}/web-image.txt
-                    # file: environments/${{ github.event.repository.name }}/${{inputs.environments}}/web-image.txt
+                    file: environments/fulltext/${{inputs.environments}}/web-image.txt
                     CONFIG_REPO_RW_APP_ID: ${{ vars.CONFIG_REPO_RW_APP_ID }}
                     CONFIG_REPO_FULL_NAME: ${{ vars.CONFIG_REPO_FULL_NAME }}
                     CONFIG_REPO_RW_KEY: ${{secrets.CONFIG_REPO_RW_KEY}}
