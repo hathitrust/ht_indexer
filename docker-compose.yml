@@ -166,17 +166,30 @@ services:
       timeout: 10s
       start_period: 30s
       retries: 5
+  ht_indexer_prometheus:
+    container_name: ht_indexer_prometheus
+    image: document_generator
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prometheus
+    command: [ "python", "ht_indexer_prometheus_app/ht_indexer_prometheus.py" ]
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./ht_indexer_prometheus_app/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"  # Expose Prometheus UI
     healthcheck:
-      test: curl -f http://localhost:8000/metrics || exit 1
+      test: curl -f http://ht_indexer_prometheus:8000/metrics || exit 1
       interval: 10s
       timeout: 5s
       retries: 3
+  pushgateway:
+    container_name: prometheus_pushgateway
+    image: prom/pushgateway
+    ports:
+      - "9091:9091"
   all_tests:
     container_name: all_tests
     build: .

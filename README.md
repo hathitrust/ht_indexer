@@ -62,6 +62,7 @@ systems involved in the flow to index documents in Full-text search index. The q
         * If the list of documents is empty, so do a `--query *:*` and the query_field will be id to retrieve
           all the documents in the Catalog index.
     * Storage the different status of the documents that are being processed by ht_indexer pipeline.
+* **Phase 4**: Instrument the application to monitor the flow of documents to be indexed in Full-text search index
 
 ## Project Set Up
 
@@ -413,6 +414,62 @@ In the image below, you can see the main kubernetes parts running in this workfl
 4. Get user/pass of Rabbitmq
    `kubectl -n fulltext-workshop get secret rabbitmq-secret -o jsonpath="{.data.rabbitmq-password}" | base64 --decode`
    `kubectl -n fulltext-workshop get secret rabbitmq-secret -o jsonpath="{.data.rabbitmq-username}" | base64 --decode`
+
+#### How to instrument the application to monitor the flow of documents to be indexed in Full-text search index
+
+##### Prometheus set up in docker-compose
+
+* Exposing metrics for a Python API app and monitor them using Prometheus
+* Creating the folder ht_indexer_prometheus to store:
+    * prometheus configuration files
+    * the python API app to monitor
+* The python API app is a simple FastAPI app that exposes a few endpoints to simulate the monitoring of the flow of
+  documents to be indexed in Full-text search index
+* The Python API is using the same image as the document_generator service
+* The services `prometheus` and `ht_indexer_prometheus` are added to the docker-compose file with the following content:
+
+```aiignore
+  ht_indexer_prometheus:
+    container_name: ht_indexer_prometheus
+    image: document_generator
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prometheus
+    command: [ "python", "ht_indexer_prometheus.py" ]
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"  # Expose Prometheus UI
+    healthcheck:
+      test: curl -f http://localhost:8000/metrics || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+```
+
+Prometheus configurarion file looks like this:
+
+```aiignore
+
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: 'ht_indexer_prometheus'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: [ 'ht_indexer_prometheus:8000' ] #localhost:8000
+```
+
+This configuration tells Prometheus to scrape metrics from our app service at http://ht_indexer_prometheus:5000/metrics
+every 10 seconds.
+
+This Docker Compose file defines two services: `ht_indexer_prometheus` for our Python API API, and `prometheus` for
+Prometheus.
+We also mount a prometheus.yml configuration file to the Prometheus container.
 
 # Resources
 

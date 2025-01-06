@@ -10,6 +10,8 @@ from document_retriever_service.full_text_search_retriever_service import FullTe
 from document_retriever_service.retriever_arguments import RetrieverServiceByFileArguments
 from ht_document.ht_document import logger
 from document_retriever_service.ht_status_retriever_service import get_non_processed_ids
+from ht_indexer_prometheus_app.ht_retriever_metrics import RETRIEVER_DOCUMENTS, RETRIEVER_PROCESSING_TIME, registry_retriever
+from ht_indexer_prometheus_app.ht_indexer_prometheus import ht_push_to_gateway
 
 current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent = os.path.dirname(current)
@@ -68,6 +70,12 @@ def retrieve_documents_by_file(solr_api_url, queue_name, queue_host, queue_user,
                                       start,
                                       rows)
 
+                # Update the metrics
+                RETRIEVER_DOCUMENTS.inc(len(list_documents))
+                RETRIEVER_PROCESSING_TIME.observe(time.time() - start_time)
+
+                ht_push_to_gateway(registry_retriever, job='document_retriever')
+
                 logger.info(f"Total time to retrieve and generate documents {time.time() - start_time:.10f}")
 
     else:
@@ -76,6 +84,7 @@ def retrieve_documents_by_file(solr_api_url, queue_name, queue_host, queue_user,
 
 
 def main():
+
     parser = argparse.ArgumentParser()
 
     init_args_obj = RetrieverServiceByFileArguments(parser)
