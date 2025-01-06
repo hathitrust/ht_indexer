@@ -62,9 +62,9 @@ def scrape_metrics():
     except Exception as e:
         print(f"Error scraping metrics: {e}")
 
-def ht_push_to_gateway(registry, job='hello_world'):
+def ht_push_to_gateway(registry, job='hello_world', grouping_key={'instance': 'hello_world'}):
     try:
-        push_to_gateway('prometheus_pushgateway:9091', job=job, registry=registry)
+        push_to_gateway('prometheus_pushgateway:9091', job=job, registry=registry, grouping_key=grouping_key)
     except Exception as e:
         print(f"Error pushing to gateway: {e}")
 

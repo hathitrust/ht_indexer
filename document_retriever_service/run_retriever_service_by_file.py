@@ -74,7 +74,10 @@ def retrieve_documents_by_file(solr_api_url, queue_name, queue_host, queue_user,
                 RETRIEVER_DOCUMENTS.inc(len(list_documents))
                 RETRIEVER_PROCESSING_TIME.observe(time.time() - start_time)
 
-                ht_push_to_gateway(registry_retriever, job='document_retriever')
+                ht_push_to_gateway(registry_retriever, job='document_retriever', grouping_key={'instance': 'document_retriever',
+                                                                                               'service': 'document_retriever',
+                                                                                               'method': 'retrieve_documents_by_file',
+                                                                                               'start_time': start_time})
 
                 logger.info(f"Total time to retrieve and generate documents {time.time() - start_time:.10f}")
 

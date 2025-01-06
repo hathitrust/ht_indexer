@@ -471,6 +471,74 @@ This Docker Compose file defines two services: `ht_indexer_prometheus` for our P
 Prometheus.
 We also mount a prometheus.yml configuration file to the Prometheus container.
 
+As ht_indexer is an application that runs process in batch, the best alternative to monitor the flow of documents with
+Prometheus is to use the [Pushgateway](https://prometheus.io/docs/practices/pushing/).
+
+The Pushgateway is an intermediary
+service that allows you to push metrics to Prometheus. The Pushgateway is used to collect metrics from batch jobs or
+from
+services that cannot be scraped directly by Prometheus.
+
+To set up the Pushgateway, you need to add the service to the docker-compose file and configure the Python application
+to push the metrics to the Pushgateway.
+
+```aiignore
+  pushgateway:
+    image: prom/pushgateway
+    ports:
+      - "9091:9091"
+```
+
+This logic is implemented in the file `ht_indexer_prometheus.py`. Each service
+will add the metrics to the Pushgateway, and Prometheus will scrape the metrics from the Pushgateway.
+You can find details about Pushgateway on Charter 4 for the book
+[Prometheus: Up & Running](https://www.oreilly.com/library/view/prometheus-up/9781492034131/).
+
+To write the metrics to the Pushgateway, we use the function `push_to_gateway` implemented in the library
+`prometheus_client`.
+
+The function `push_to_gateway` uses the `PUT HTTP` method under the covers to write the metrics to the Pushgateway.
+It will replace any existing metrics for this job with the pushed metrics.
+
+** Note: We could use the function `pushadd_to_gateway` to override existing metrics with the same metric names
+for this job. Any metrics that previously existed with different metric names remain unchanged.
+This uses the POST HTTP method under the covers.
+
+The following picture shows the metrics pushed to the Pushgateway by the Python service using the code below:
+
+![document_retriever_pushgateway_metrics.png](document_retriever_pushgateway_metrics.png)
+
+```` 
+    RETRIEVER_DOCUMENTS = Counter('documents_retriever_total',
+                                  'Total number of documents retrieved',
+                                  registry=registry_retriever)
+    
+    
+    RETRIEVER_PROCESSING_TIME = Histogram('document_retriever_seconds',
+                                          'Time taken to retrieve documents',
+                                          registry=registry_retriever) 
+````
+
+With the function `push_to_gateway` the values of `documents_retriever_total` and `document_retriever_seconds`
+will always get replaced. An additional metric `push_time_seconds` has been added by the Pushgateway because Prometheus
+will always use the time at which it scrapes as the timestamp of the Pushgateway metrics.
+`push_time_seconds` gives you a way to know the actual time the data was last pushed. Another metric,
+`push_failure_time_seconds`, has been introduced, which represents the last time when an update to this group in
+the Pushgateway failed.
+
+The metrics with the suffix `_total` are used to count the number of times an event has occurred. The metrics
+with the suffix `_seconds` are used to measure the time taken to perform an operation. The metrics with the suffix
+`_created` indicates a gauge that records the time when an event occurred.
+
+Access the Prometheus UI at http://localhost:9090; the Pushgateway UI at http://localhost:9091 and the
+Prometheus metrics at http://localhost:8000/metrics.
+
+Relevant links:
+
+* [Pushgateway](https://prometheus.io/docs/practices/pushing/)
+* [Introduction to Python monitoring with Prometheus] (https://www.youtube.com/watch?v=HzEiRwJP6ag)
+* [Monitoring Python applications using Prometheus, Rafał Kondziela | MonteTalks: Python](https://www.youtube.com/watch?v=n1nL4Sf7VEs)
+
 # Resources
 
 ### [How to set up your python environment](#project-set-up-local-environment)
