@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Text
 
@@ -37,8 +38,20 @@ class HTSolrAPI:
             raise e
         return response
 
-    def index_documents(self, path: Path, list_documents: list = None, solr_url_json: str = 'update/json/docs',
-                        headers: dict = {"Content-Type": "application/json"}):
+    def index_documents(self, list_documents: list = None, solr_url_json: str = 'update/json/docs',
+                                headers: dict = {"Content-Type": "application/json"}):
+        """Read an XML and feed into SOLR for indexing"""
+        response = requests.post(
+            f"{self.url.replace('#/', '')}{solr_url_json}?commit=true",
+            headers=headers,
+            auth=self.auth,
+            data=json.dumps(list_documents),
+            params={"commit": "true"},
+        )
+        return response
+
+    def index_documents_by_file(self, path: Path, list_documents: list = None, solr_url_json: str = 'update/json/docs',
+                                headers: dict = {"Content-Type": "application/json"}):
         """Read an XML and feed into SOLR for indexing"""
         data_path = Path(path)
         for doc in list_documents:

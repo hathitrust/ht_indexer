@@ -146,3 +146,17 @@ class TestHTConsumerService:
 
         check_queue.ht_channel.queue_purge(check_queue.queue_name)
         consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)
+
+    @pytest.mark.parametrize("retriever_parameters", [{"user": "guest", "password": "guest", "host": "localhost",
+                                                       "queue_name": "test_producer_queue",
+                                                       "requeue_message": False,
+                                                       "batch_size": 3}])
+    def test_queue_consume_N_message(self, populate_queue, consumer_instance_N_messages):
+        check_queue = QueueConnection("guest", "guest", "rabbitmq",
+                                      "test_producer_queue_dead_letter_queue", batch_size=3)
+
+        assert consumer_instance_N_messages.conn.get_total_messages() > 0
+        assert 0 == check_queue.get_total_messages()
+
+        check_queue.ht_channel.queue_purge(check_queue.queue_name)
+        consumer_instance_N_messages.conn.ht_channel.queue_purge(consumer_instance_N_messages.queue_name)

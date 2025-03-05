@@ -55,17 +55,18 @@ class FullTextSearchRetrieverQueueService:
         self.queue_user = queue_user
         self.queue_password = queue_password
 
-    def get_queue_producer(self) -> QueueProducer:
+    def get_queue_producer(self) -> QueueProducer | None:
 
         """Establish a connection to the queue to publish the documents"""
 
         try:
             queue_producer = QueueProducer(self.queue_user, self.queue_password, self.queue_host, self.queue_name)
+            return queue_producer
         except Exception as e:
             logger.error(f"Environment variables required: "
                          f"{ht_utils.ht_utils.get_general_error_message('DocumentGeneratorService', e)}")
 
-        return queue_producer
+
 
     @staticmethod
     def generate_metadata(record: CatalogItemMetadata) -> tuple[dict, str]:
@@ -113,7 +114,8 @@ class FullTextSearchRetrieverQueueService:
             # Try to publish the document in the queue, if an error occurs, log the error and continue to the next
             # TODO: Add a mechanism to send the message to a dead letter queue
             try:
-                publish_document(queue_producer, item_metadata)
+                for i in range(0, 100): # It will publish the message 10 times
+                    publish_document(queue_producer, item_metadata)
 
                 # Update the status of the item in a table
                 processed_items.append(item_id)
@@ -232,7 +234,6 @@ def main():
 
     by_field = init_args_obj.query_field
     list_documents = init_args_obj.list_documents
-
     start_time = time.time()
 
     logger.info(f"Total of documents to process {len(list_documents)}")

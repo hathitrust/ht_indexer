@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 MAX_ITEM_IDS = 1000
 
@@ -72,3 +73,14 @@ IDENTICAL_CATALOG_METADATA = [
     "era",
     "fullrecord"
 ]
+
+# indexer queue
+
+queue_host = os.getenv("QUEUE_HOST") if os.getenv("QUEUE_HOST") else "localhost"
+indexer_queue_name = "indexer_queue"
+
+# False means that the message will be discarded from the queue and for our service they will be published
+# in a dead letter queue
+indexer_requeue_message = False
+indexer_batch_size = 50
+
