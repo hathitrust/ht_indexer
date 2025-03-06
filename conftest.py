@@ -64,16 +64,6 @@ def consumer_instance(retriever_parameters):
 
 
 @pytest.fixture
-def consumer_instance_N_messages(retriever_parameters):
-    """
-    This function is used to consume messages from the queue
-    """
-
-    return QueueConsumer(retriever_parameters["user"], retriever_parameters["password"],
-                         retriever_parameters["host"], retriever_parameters["queue_name"],
-                         retriever_parameters["requeue_message"], retriever_parameters["batch_size"])
-
-@pytest.fixture
 def producer_instance(retriever_parameters):
     """
     This function is used to generate a message to the queue

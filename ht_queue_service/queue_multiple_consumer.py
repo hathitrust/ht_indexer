@@ -1,10 +1,11 @@
 # consumer
+import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+
+import orjson
 
 from ht_queue_service.queue_connection_dead_letter import QueueConnectionDeadLetter
 from ht_utils.ht_logger import get_ht_logger
-import json
 
 logger = get_ht_logger(name=__name__)
 
@@ -32,61 +33,67 @@ class QueueMultipleConsumer(ABC):
         self.host = host
         self.queue_name = queue_name
         self.password = password
+        # Requeue_message is a boolean to requeue the message to the queue.
+        # If it is False, the message will be rejected, and it will be sent to the Dead Letter Queue.
         self.requeue_message = requeue_message
+        # batch_size is the size of the batch to be consumed.
         self.batch_size = batch_size
-        self.batch = [] # It stores messages for batch processing
-        self.delivery_tags = [] # It stores delivery tags for acknowledging messages
-        self.executor = ThreadPoolExecutor(max_workers=batch_size)
 
         try:
             self.conn = QueueConnectionDeadLetter(self.user, self.password, self.host, self.queue_name, batch_size)
         except Exception as e:
             raise e
 
-    def process_message(self, message: dict):
-        """Abstract method for processing one message. Must be implemented by subclasses."""
-        if "error" in message:
-            raise Exception(message["error"])
-        logger.info(f"Processing message: {message}")
-
     @abstractmethod
-    def process_batch(self):
+    def process_batch(self, batch: list, delivery_tag: list):
         """ Abstract method for processing a batch of messages. Must be implemented by subclasses.
 
-        Seudo code: Process the batch of messages.
+        Steps to implement on the subclass:
+        Method to process the batch of messages.
         If the processing is successful, acknowledge all the messages in the batch.
         If the processing fails, requeue all the failed messages to the Dead Letter Queue.
         Clear the batch and the delivery tags lists.
         """
         pass
 
-    def _callback(self, ch, method, properties, body):
-        """Internal callback function that collects messages into batches."""
+    def consume_batch(self):
 
-        self.batch.append(json.loads(body))
-        self.delivery_tags.append(method.delivery_tag)
+        """ Retrieves a full batch of messages before processing """
+        while True:
+            batch = [] # It stores messages for batch processing
+            delivery_tag = [] # It stores delivery tags for acknowledging messages
+            for _ in range(self.batch_size):
+                # Use basic_get to retrieve a batch of messages and auto_ack=False to tell RabbitMQ to not wait for
+                # an acknowledgment of the message.We will manually acknowledge them
+                method_frame, properties, body = self.conn.ht_channel.basic_get(queue=self.queue_name, auto_ack=False)
+                if method_frame:
+                    batch.append(body)
+                    delivery_tag.append(method_frame.delivery_tag)
+                else:
+                    break  # Stop if no more messages in the queue
 
-        # Process the batch if it reaches the desired size
-        if len(self.batch) >= self.batch_size:
-            self.process_batch()
+            if not batch:
+                time.sleep(2)  # Avoid busy looping
+                continue
 
-        # TODO - Implement the logic to stop consuming messages if the queue is empty
-        #if self.shutdown_on_empty_queue and self.conn.get_total_messages() == 0:
-        #    logger.info("Stopping consumer...")
-        #    self.conn.ht_channel.stop_consuming()
+            try:
+                batch_data = [orjson.loads(body) for body in batch]
+                # Process batch of messages and acknowledge them if successful
+                # If the process_batch method returns False, stop consuming messages from the queue.
+                # We use it for testing purposes. But when we could add to the service a flag to stop consuming messages.
+                if not self.process_batch(batch_data, delivery_tag):
+                    break
+
+            except Exception as e:
+                logger.error(f"[!] Error processing batch: {e}")
+                raise e
 
     def start_consuming(self):
         """Starts consuming messages from the queue."""
-        self.conn.ht_channel.basic_consume(queue=self.queue_name, on_message_callback=self._callback, auto_ack=False)
-        logger.info(f"[*] Waiting for messages on {self.queue_name}...")
-
         try:
-            self.conn.ht_channel.start_consuming()
+            self.consume_batch()
         except Exception as e:
             logger.error(f"Something went wrong while consuming messages. {e}")
-
-        if self.batch:
-            self.process_batch()  # Process the remaining messages in the batch
 
     def reject_message(self, used_channel, basic_deliver):
         used_channel.basic_reject(delivery_tag=basic_deliver, requeue=self.requeue_message)
@@ -95,6 +102,8 @@ class QueueMultipleConsumer(ABC):
         """Stop consuming messages
         Use this function for testing purposes only.
         """
+        # TODO: To stop the services we should add shutdown_on_empty_queue flag as a class attribute and we should return False
+        #         when the queue is empty on the method process_batch.
         logger.info("Time's up! Stopping consumer...")
         shutdown_on_empty_queue = True
         self.conn.ht_channel.close()

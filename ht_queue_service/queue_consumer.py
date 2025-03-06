@@ -35,7 +35,7 @@ class QueueConsumer:
         except Exception as e:
             raise e
 
-    def consume_message(self, inactivity_timeout: int = None) -> dict:
+    def consume_message(self, inactivity_timeout: int = None) -> dict or None:
 
         # Inactivity timeout is the time in seconds to wait for a message before returning None, the consumer will
         try:

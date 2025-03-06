@@ -21,7 +21,7 @@ def get_fake_solr_api():
     )
 
 
-class TestHTSolrAPI():
+class TestHTSolrAPI:
 
     @patch('ht_indexer_api.ht_indexer_api.HTSolrAPI.get_solr_status')
     def test_connection(self, mock_solr_status, get_solr_api):

@@ -114,8 +114,7 @@ class FullTextSearchRetrieverQueueService:
             # Try to publish the document in the queue, if an error occurs, log the error and continue to the next
             # TODO: Add a mechanism to send the message to a dead letter queue
             try:
-                for i in range(0, 100): # It will publish the message 10 times
-                    publish_document(queue_producer, item_metadata)
+                publish_document(queue_producer, item_metadata)
 
                 # Update the status of the item in a table
                 processed_items.append(item_id)

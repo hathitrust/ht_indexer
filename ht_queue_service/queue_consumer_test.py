@@ -82,8 +82,9 @@ class TestHTConsumerService:
 
     @pytest.mark.parametrize("retriever_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
                                                        "queue_name": "test_producer_queue",
-                                                       "requeue_message": False}])
-    def test_queue_consume_message(self, one_message, producer_instance, consumer_instance):
+                                                       "requeue_message": False,
+                                                       "batch_size": 1}])
+    def test_queue_consume_message(self,retriever_parameters, one_message, producer_instance, consumer_instance):
         """ Test for consuming a message from the queue
         One message is published and consumed, then at the end of the test the queue is empty
         """
@@ -104,8 +105,9 @@ class TestHTConsumerService:
 
     @pytest.mark.parametrize("retriever_parameters", [{"user": "guest", "password": "guest", "host": "rabbitmq",
                                                        "queue_name": "test_producer_queue",
-                                                       "requeue_message": False}])
-    def test_queue_consume_message_empty(self, consumer_instance):
+                                                       "requeue_message": False,
+                                                       "batch_size": 1}])
+    def test_queue_consume_message_empty(self, retriever_parameters, consumer_instance):
         """ Test for consuming a message from an empty queue"""
 
         # Clean up the queue
@@ -117,8 +119,9 @@ class TestHTConsumerService:
     @pytest.mark.parametrize("retriever_parameters",
                              [{"user": "guest", "password": "guest", "host": "rabbitmq",
                                "queue_name": "test_producer_queue",
-                               "requeue_message": False}])
-    def test_queue_requeue_message_requeue_false(self, populate_queue, consumer_instance):
+                               "requeue_message": False,
+                               "batch_size": 1}])
+    def test_queue_requeue_message_requeue_false(self, retriever_parameters, populate_queue, consumer_instance):
         """ Test for re-queueing a message from the queue, an error is raised, and the message is routed
         to the dead letter queue and discarded from the main queue"""
 
@@ -133,8 +136,9 @@ class TestHTConsumerService:
     @pytest.mark.parametrize("retriever_parameters",
                              [{"user": "guest", "password": "guest", "host": "rabbitmq",
                                "queue_name": "test_producer_queue",
-                               "requeue_message": True}])
-    def test_queue_requeue_message_requeue_true(self, populate_queue, consumer_instance):
+                               "requeue_message": True,
+                               "batch_size": 1}])
+    def test_queue_requeue_message_requeue_true(self, retriever_parameters, populate_queue, consumer_instance):
         """ Test for re-queueing a message from the queue, an error is raised, and instead of routing the message
         to the dead letter queue, it is requeue to the main queue"""
 
@@ -146,17 +150,3 @@ class TestHTConsumerService:
 
         check_queue.ht_channel.queue_purge(check_queue.queue_name)
         consumer_instance.conn.ht_channel.queue_purge(consumer_instance.queue_name)
-
-    @pytest.mark.parametrize("retriever_parameters", [{"user": "guest", "password": "guest", "host": "localhost",
-                                                       "queue_name": "test_producer_queue",
-                                                       "requeue_message": False,
-                                                       "batch_size": 3}])
-    def test_queue_consume_N_message(self, populate_queue, consumer_instance_N_messages):
-        check_queue = QueueConnection("guest", "guest", "rabbitmq",
-                                      "test_producer_queue_dead_letter_queue", batch_size=3)
-
-        assert consumer_instance_N_messages.conn.get_total_messages() > 0
-        assert 0 == check_queue.get_total_messages()
-
-        check_queue.ht_channel.queue_purge(check_queue.queue_name)
-        consumer_instance_N_messages.conn.ht_channel.queue_purge(consumer_instance_N_messages.queue_name)

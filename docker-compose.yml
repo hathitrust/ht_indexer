@@ -62,12 +62,6 @@ services:
     volumes:
       - solr1_data:/var/solr/data
     # start solr in the background, wait for it to start, then create the collection
-    #command: [ "sh", "-c", 'solr-foreground -c & sleep 150 && export SOLR_AUTHENTICATION_OPTS=-Dbasicauth="$SOLR_USER":"$SOLR_PASSWORD" && solr create_collection -d /opt/solr/core-x -c core-x -shards 1 -replicationFactor 1 -p 8983 && wait' ]
-    #healthcheck:
-    #  test: [ "CMD-SHELL", "solr healthcheck -c core-x || echo 'Healthcheck failed'" ]
-    #  interval: 30s
-    #  timeout: 10s
-    #  retries: 5
     command: [ "sh", "-c", 'solr-foreground -c & sleep 150 && export SOLR_AUTHENTICATION_OPTS=-Dbasicauth=admin:solrRocks && solr create_collection -d /opt/solr/core-x -c core-x -shards 1 -replicationFactor 1 -p 8983 && wait' ]
     healthcheck:
       test: [ "CMD-SHELL", "curl -s -u admin:solrRocks 'http://localhost:8983/solr/admin/collections?action=CLUSTERSTATUS&collection=core-x' | grep -q '\"state\":\"active\"'" ]
@@ -150,9 +144,9 @@ services:
       QUEUE_NAME: indexer_queue
       QUEUE_PASS: guest
       QUEUE_USER: guest
-      SOLR_USER: solr
+      SOLR_USER: admin
       SOLR_PASSWORD: 'solrRocks'
-    command: [ "python", "document_indexer_service/document_indexer_service.py", "--solr_indexing_api", "http://solr-lss-dev:8983/solr/#/core-x/" ]
+    command: [ "python", "document_indexer_service/document_indexer_service.py", "--solr_indexing_api", "http://solr-lss-dev:8983/solr/#/core-x/", "--batch_size", "100" ]
   rabbitmq:
     container_name: rabbitmq
     image: rabbitmq:3.13-management

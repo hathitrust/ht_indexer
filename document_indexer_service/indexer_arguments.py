@@ -1,6 +1,8 @@
 import os
+
+import ht_indexer_config
 from ht_indexer_api.ht_indexer_api import HTSolrAPI
-from ht_indexer_config import indexer_requeue_message, indexer_batch_size, indexer_queue_name
+from ht_indexer_config import indexer_requeue_message, indexer_queue_name
 from ht_utils.ht_logger import get_ht_logger
 
 logger = get_ht_logger(name=__name__)
@@ -24,6 +26,11 @@ class IndexerServiceArguments:
             default=None
         )
 
+        parser.add_argument(
+            "--batch_size",
+            help="Integer that represents the number of documents to process in a batch."
+        )
+
         self.args = parser.parse_args()
 
         solr_user = os.getenv("SOLR_USER")
@@ -41,6 +48,6 @@ class IndexerServiceArguments:
             "queue_host": os.getenv("QUEUE_HOST"),
             "queue_name": os.getenv("QUEUE_NAME") if os.getenv("QUEUE_NAME") else indexer_queue_name,
             "requeue_message": indexer_requeue_message,
-            "batch_size": indexer_batch_size
+            "batch_size": int(self.args.batch_size) if self.args.batch_size else ht_indexer_config.indexer_batch_size
         }
 
