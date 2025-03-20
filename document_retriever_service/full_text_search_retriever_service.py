@@ -233,6 +233,13 @@ def main():
 
     by_field = init_args_obj.query_field
     list_documents = init_args_obj.list_documents
+
+    if len(list_documents) == 0:
+
+        # Retrieve documents from MySQL
+        retriever_query = "SELECT ht_id FROM ht_indexer_tracktable WHERE status = 'pending'"
+        list_documents = ht_indexer_tracktable.mysql_obj.query_mysql(retriever_query)
+
     start_time = time.time()
 
     logger.info(f"Total of documents to process {len(list_documents)}")

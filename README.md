@@ -118,6 +118,9 @@ follow the steps mentioned in the section [How to set up your python environment
     * `poetry env use python` # To find the virtual environment directory, created by poetry
     * `source ~/ht-indexer-GQmvgxw4-py3.11/bin/activate` # Activate the virtual environment
     * `poetry add pytest` # Optional: Use this command if you want to add dependencies
+    * `poetry self update` # Update poetry
+    * Since Poetry (2.0.0) the recommended way to activate the virtual environment is using the command
+      `poetry env activate`
 
 ## Content Structure
 
