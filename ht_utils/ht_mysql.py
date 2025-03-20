@@ -1,10 +1,44 @@
 import mysql.connector
 import ht_utils.ht_utils
 import sys
+import os
 
 from ht_utils.ht_logger import get_ht_logger
 
 logger = get_ht_logger(name=__name__)
+
+def get_mysql_conn():
+    # MySql connection
+    try:
+        mysql_host = os.getenv("MYSQL_HOST", "mysql-sdr")
+        logger.info(f"Connected to MySql_Host: {mysql_host}")
+    except KeyError:
+        logger.error("Error: `MYSQL_HOST` environment variable required")
+        sys.exit(1)
+
+    try:
+        mysql_user = os.getenv("MYSQL_USER", "mdp-lib")
+    except KeyError:
+        logger.error("Error: `MYSQL_USER` environment variable required")
+        sys.exit(1)
+
+    try:
+        mysql_pass = os.getenv("MYSQL_PASS", "mdp-lib")
+    except KeyError:
+        logger.error("Error: `MYSQL_PASS` environment variable required")
+        sys.exit(1)
+
+    ht_mysql = ht_utils.ht_mysql.HtMysql(
+        host=mysql_host,
+        user=mysql_user,
+        password=mysql_pass,
+        database=os.getenv("MYSQL_DATABASE", "ht")
+    )
+
+    logger.info("Access by default to `ht` Mysql database")
+
+    return ht_mysql
+
 
 
 class HtMysql:
@@ -39,3 +73,38 @@ class HtMysql:
             list_docs.append(doc)
 
         return list_docs
+
+    def table_exists(self, table_name: str) -> bool:
+        cursor = self.db_conn.cursor()
+        try:
+            cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+            result = cursor.fetchone()
+            return result is not None
+        except mysql.connector.Error as e:
+            logger.error(f"Error checking if table exists: {e}")
+        finally:
+            cursor.close()
+
+    def insert_batch(self, insert_query: str, batch_values: list):
+        cursor = self.db_conn.cursor()
+        try:
+            cursor.executemany(insert_query, batch_values)
+            self.db_conn.commit()
+            logger.info(f"Inserted {len(batch_values)} records successfully.")
+        except mysql.connector.Error as e:
+            logger.error(f"Error inserting batch of records: {e}")
+            self.db_conn.rollback()
+        finally:
+            cursor.close()
+
+    def create_table(self, create_table_sql: str):
+        cursor = self.db_conn.cursor()
+        try:
+            cursor.execute(create_table_sql)
+            self.db_conn.commit()
+            logger.info("Table created successfully")
+        except mysql.connector.Error as e:
+            logger.error(f"Failed to create table: {e}")
+            self.db_conn.rollback()
+        finally:
+            cursor.close()

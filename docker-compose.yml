@@ -15,13 +15,42 @@ services:
       QUEUE_NAME: retriever_queue
       QUEUE_PASS: guest
       QUEUE_USER: guest
+      SOLR_USER: solr
+      SOLR_PASSWORD: 'solrRocks'
     depends_on:
       solr-sdr-catalog:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      mysql-sdr:
+        condition: service_healthy
     tty: true
     stdin_open: true
+  mysql-retriever:
+    image: mariadb:10.6
+    volumes:
+      - mysql_retriever_data:/var/lib/mysql
+    restart: always
+    # command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_HOST: mysql-retriever
+      MYSQL_USER: ht_indexer
+      MYSQL_PASS: ht_indexer
+      MYSQL_DATABASE: ht_indexer
+      MYSQL_RANDOM_ROOT_PASSWORD: 1
+    healthcheck:
+      interval: 30s
+      retries: 3
+      test:
+        [
+          "CMD",
+          "healthcheck.sh",
+          "--su-mysql",
+          "--connect"
+        ]
+      timeout: 30s
   mysql-sdr:
     image: ghcr.io/hathitrust/db-image
     volumes:
@@ -31,8 +60,8 @@ services:
       - "3306:3306"
     environment:
       MYSQL_HOST: mysql-sdr
-      MYSQL_USER: mdp-lib
-      MYSQL_PASS: mdp-lib
+      MYSQL_USER: mdp-admin
+      MYSQL_PASS: mdp-admin
       MYSQL_DATABASE: ht
       MYSQL_RANDOM_ROOT_PASSWORD: 1
     healthcheck:
@@ -179,4 +208,5 @@ volumes:
   mysql_sdr_data:
   solr1_data: null
   zoo1_data: null
+  mysql_retriever_data:
 
