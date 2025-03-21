@@ -35,7 +35,8 @@ def get_mysql_conn():
         host=mysql_host,
         user=mysql_user,
         password=mysql_pass,
-        database=os.getenv("MYSQL_DATABASE", "ht")
+        database=os.getenv("MYSQL_DATABASE", "ht"),
+        pool_size=5
     )
 
     logger.info("Access by default to `ht` Mysql database")
