@@ -9,6 +9,7 @@ import ht_utils.ht_utils
 from catalog_metadata.catalog_metadata import CatalogItemMetadata
 from document_retriever_service.catalog_retriever_service import CatalogRetrieverService
 from document_retriever_service.retriever_arguments import RetrieverServiceArguments
+from ht_indexer_monitoring import ht_indexer_tracktable
 from ht_utils.ht_logger import get_ht_logger
 from ht_queue_service.queue_producer import QueueProducer
 
@@ -118,6 +119,8 @@ class FullTextSearchRetrieverQueueService:
 
                 # Update the status of the item in a table
                 processed_items.append(item_id)
+                # ht_indexer_tracktable.update_status(item_id, 'processed')
+
             except Exception as e:
                 error_info = ht_utils.ht_utils.get_error_message_by_document("FullTextSearchRetrieverQueueService",
                                                                              e, item_metadata)
@@ -231,15 +234,22 @@ def main():
         init_args_obj.queue_user,
         init_args_obj.queue_password)
 
+    # by_field is use to define the type of query to retrieve the documents (by item or by record).
+    # by_field = item => MySQL query will return the ht_id of the items
+    # by_field = record => MySQL query will return the id of the records
+    # To retrieve documents from Catalog the field is also used to define the type of query
+
     by_field = init_args_obj.query_field
     list_documents = init_args_obj.list_documents
 
     if len(list_documents) == 0:
-
         # Retrieve documents from MySQL
-        retriever_query = "SELECT ht_id FROM ht_indexer_tracktable WHERE status = 'pending'"
-        list_documents = ht_indexer_tracktable.mysql_obj.query_mysql(retriever_query)
+        list_documents = init_args_obj.db_conn.query_mysql(init_args_obj.retriever_query)
 
+        if by_field == 'record':
+            list_documents = [record['record_id'] for record in list_documents]
+        if by_field == 'item':
+            list_documents = [record['ht_id'] for record in list_documents]
     start_time = time.time()
 
     logger.info(f"Total of documents to process {len(list_documents)}")
@@ -251,6 +261,8 @@ def main():
     total_documents = len(list_documents)
     run_retriever_service(parallelize, nthreads, total_documents, list_documents, by_field, document_retriever_service,
                           init_args_obj.start, init_args_obj.rows)
+
+
 
     logger.info(f"Total time to retrieve and generate documents {time.time() - start_time:.10f}")
 

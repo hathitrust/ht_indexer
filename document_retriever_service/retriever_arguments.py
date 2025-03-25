@@ -4,6 +4,7 @@ import inspect
 
 import ht_utils.ht_utils
 from ht_utils.ht_logger import get_ht_logger
+from ht_utils.ht_mysql import get_mysql_conn
 
 logger = get_ht_logger(name=__name__)
 
@@ -51,8 +52,13 @@ class RetrieverServiceArguments:
             sys.exit(1)
         self.args = parser.parse_args()
 
+        # MySql connection
+        self.db_conn = get_mysql_conn()
+
         self.list_documents = self.args.list_documents
         self.query_field = self.args.query_field
+
+        self.retriever_query = "SELECT ht_id, record_id FROM ht_indexer_tracktable WHERE status = 'pending'"
 
         # TODO: Add start and rows to a configuration file
         self.start = 0

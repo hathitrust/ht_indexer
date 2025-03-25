@@ -112,7 +112,7 @@ class HTIndexerTracktable:
                 #list_documents.extend([ht_id for ht_id in dict_x["ht_id"]])
 
             # Insert in MySQL a batch size of 1000 records
-            if len(data) >= 1000:
+            if len(data) >= 10:
                 yield data
 
     def create_table(self):
@@ -163,6 +163,8 @@ class HTIndexerTracktable:
     ]
 
         self.mysql_obj.insert_batch(insert_query, batch_values)
+
+
 
 def main():
 
