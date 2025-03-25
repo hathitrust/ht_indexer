@@ -26,31 +26,6 @@ services:
         condition: service_healthy
     tty: true
     stdin_open: true
-  mysql-retriever:
-    image: mariadb:10.6
-    volumes:
-      - mysql_retriever_data:/var/lib/mysql
-    restart: always
-    # command: --default-authentication-plugin=mysql_native_password
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_HOST: mysql-retriever
-      MYSQL_USER: ht_indexer
-      MYSQL_PASS: ht_indexer
-      MYSQL_DATABASE: ht_indexer
-      MYSQL_RANDOM_ROOT_PASSWORD: 1
-    healthcheck:
-      interval: 30s
-      retries: 3
-      test:
-        [
-          "CMD",
-          "healthcheck.sh",
-          "--su-mysql",
-          "--connect"
-        ]
-      timeout: 30s
   mysql-sdr:
     image: ghcr.io/hathitrust/db-image
     volumes:
