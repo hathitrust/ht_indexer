@@ -70,6 +70,8 @@ FROM python:3.11-slim-bookworm AS runtime
 
 ENV FASTAPI_ENV=runtime
 
+RUN for i in $(seq 1 24); do ln -s /sdr/$i /sdr$i; done
+
 ARG UID=1000
 ARG GID=1000
 
@@ -97,6 +99,6 @@ ENV PYTHONPATH=/app
 
 COPY --chown=${UID}:${GID} . /app
 
-RUN for i in $(seq 1 24); do ln -s /sdr/$i /sdr$i; done
+
 
 CMD ["tail", "-f", "/dev/null"]
