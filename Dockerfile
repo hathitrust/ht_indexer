@@ -48,8 +48,6 @@ RUN apt-get update -y \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN for i in $(seq 1 24); do ln -s /sdr/$i /sdr$i; done
-
 # Install the app. Just copy the files needed to install the dependencies
 COPY pyproject.toml poetry.lock README.md ./
 
@@ -98,5 +96,7 @@ WORKDIR /app
 ENV PYTHONPATH=/app
 
 COPY --chown=${UID}:${GID} . /app
+
+RUN for i in $(seq 1 24); do ln -s /sdr/$i /sdr$i; done
 
 CMD ["tail", "-f", "/dev/null"]
